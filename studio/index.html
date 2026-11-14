@@ -2042,7 +2042,7 @@ function openGuide(at = 0){
   gStep = at; hideTip(); dropPending && dropPending();
   $('gd-layer').hidden = false; guideBody(); placeGuide(); $('gd-next').focus();
 }
-function closeGuide(){ store.set('tf-guide-seen', 1); $('gd-layer').hidden = true; $('gd-body').innerHTML = ''; $('guide-btn').focus(); }
+function closeGuide(){ store.set('tf-guide-seen-2', 1); $('gd-layer').hidden = true; $('gd-body').innerHTML = ''; $('guide-btn').focus(); }
 const guideOpen = () => !$('gd-layer').hidden;
 $('guide-btn').onclick = () => openGuide(0);
 $('gd-skip').onclick = closeGuide;
@@ -2065,17 +2065,17 @@ const TIPS = {
   stock: 'My stock shows only the pieces you’ve said you own (use + under a tile in Store), with how many are left.',
 };
 let tipT = 0;
-const tipsSeen = () => store.get('tf-tips') || {};
+const tipsSeen = () => store.get('tf-tips-2') || {};
 function tip(id){
-  if (!TIPS[id] || guideOpen() || !store.get('tf-guide-seen')) return;
+  if (!TIPS[id] || guideOpen() || !store.get('tf-guide-seen-2')) return;
   const seen = tipsSeen(); if (seen.off || seen[id]) return;
-  seen[id] = 1; store.set('tf-tips', seen);
+  seen[id] = 1; store.set('tf-tips-2', seen);
   $('tip-text').textContent = TIPS[id]; $('tip').hidden = false;
   clearTimeout(tipT); tipT = setTimeout(hideTip, 14000);
 }
 function hideTip(){ clearTimeout(tipT); $('tip').hidden = true; }
 $('tip-ok').onclick = hideTip;
-$('tip-off').onclick = () => { const s = tipsSeen(); s.off = 1; store.set('tf-tips', s); hideTip(); toast('Tips are off. The Guide button still has everything.', 'info'); };
+$('tip-off').onclick = () => { const s = tipsSeen(); s.off = 1; store.set('tf-tips-2', s); hideTip(); toast('Tips are off. The Guide button still has everything.', 'info'); };
 
 try {
   MODELS = await (await fetch('models.json?v=20261114-1740')).json();
@@ -2088,7 +2088,8 @@ try {
   resize(); frame();
   renderPalette(); renderCart(); changed(); idleHint();
   $('status').hidden = true;
-  if (!store.get('tf-guide-seen')) setTimeout(() => openGuide(0), 400);
+  // a new guide key (15 Nov 2026) shows the guide once more to everyone; ?guide in the address always opens it
+  if (!store.get('tf-guide-seen-2') || /[?&]guide\b/.test(location.search)) setTimeout(() => openGuide(0), 400);
 } catch (err){
   console.error(err);
   $('status').textContent = 'Studio needs a recent browser with WebGL.';
