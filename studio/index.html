@@ -270,6 +270,9 @@ kbd{display:inline-block;min-width:1.6em;padding:1px 6px;border-radius:6px;borde
 .card.fit{border-color:var(--gold);box-shadow:0 0 0 2px color-mix(in srgb,var(--gold) 45%,transparent)}
 .card.fit::after{content:'Fits';position:absolute;top:8px;right:8px;padding:1px 7px;border-radius:999px;background:var(--gold);color:var(--gold-ink);font:700 .6rem/1.5 var(--font-hud);letter-spacing:.06em;text-transform:uppercase}
 .card.nofit{opacity:.38}
+/* the piece made for the selected one (a ledge's own lava edge, say): green behind it (15 Nov 2026) */
+.card.match{opacity:1;border-color:#2fbf71;background:color-mix(in srgb,#2fbf71 24%,var(--surface));box-shadow:0 0 0 2px color-mix(in srgb,#2fbf71 50%,transparent)}
+.card.match::after{content:'Made for it';position:absolute;top:8px;right:8px;padding:1px 7px;border-radius:999px;background:#2fbf71;color:#06210f;font:700 .6rem/1.5 var(--font-hud);letter-spacing:.06em;text-transform:uppercase}
 .card.nofit:hover{opacity:.8}
 .card{position:relative}
 .card .tagc{position:absolute;top:10px;left:10px;margin:0;backdrop-filter:blur(2px)}
@@ -984,6 +987,16 @@ function pickBlock(id, quiet){
 /* which tiles in the open tab could go beside the selected placed tile: some turn and spot, touching it (or tucked under it,
    for lava under a ledge), that passes the same placement check as a click. Worked out a few tiles at a time so the page stays smooth. */
 let fitSet = null, fitJob = 0;
+// which lava each riverbed piece was designed to go with (from how the built-in maps use them), and the reverse
+const MADE_FOR = { P4001:['P4101'], P4002:['P4101'], P4003:['P4101'], P4004:['P4101'], P4006:['P4101'], P4011:['P4103'], P4012:['P4103'],
+  P4013:['P4103'], P4021:['P4103'], P4022:['P4123'], P4031:['P4131'], P4034:['P4134'], P4032:['P4132'], P4035:['P4135'], P4033:['P4133'], P4201:['P4101'],
+  P4041:['P4111','P4112','P4114'], P4042:['P4111','P4112','P4114'], P4043:['P4111','P4112','P4114'], P4046:['P4111','P4112','P4114'], P4047:['P4111','P4112','P4114'],
+  P4048:['P4111','P4112','P4114'], P4049:['P4111','P4112','P4114'], P4050:['P4111','P4112','P4114'], P4051:['P4111','P4112','P4114'] };
+function madeFor(code){
+  if (MADE_FOR[code]) return new Set(MADE_FOR[code]);
+  const back = Object.keys(MADE_FOR).filter(k => MADE_FOR[k].includes(code) && !/^P404|^P405/.test(k));   // lava selected: its own ledges (not every stone)
+  return back.length ? new Set(back) : null;
+}
 // two riverbed pieces only count as going together if their rock lines up where they meet: along every shared square edge,
 // what's solid just inside one piece must match what's solid just inside the other (one 2.5 mm cell of slack in ten)
 // lava beside a ledge (or a ledge beside lava) only counts where the lava runs in under the rock's overhang
@@ -1131,7 +1144,7 @@ function idleHint(){
   else if (view) hint('View mode. Orbit and zoom freely. Tap the eye to keep building.');
   else if (arrange) hint(boards.length > 1 ? 'Editing boards. Click or drag a board (green where it clips on). Rotate and remove act on the selected board; + adds a board.' : 'Add a second board to clip on, then slide it into place here.');
   else if (erase) hint(`Remove mode. Tap a tile on level ${level+1} to remove it.`);
-  else if (pickedBlock()) hint(`${pickedBlock().code} selected. Click again to turn it 90°, drag to shift it (drag it off the board to remove it), or press Delete. Tiles marked Fits below can go beside it.`);
+  else if (pickedBlock()) hint(`${pickedBlock().code} selected. Click again to turn it 90°, drag to shift it (drag it off the board to remove it), or press Delete. Tiles marked Fits below can go beside it; green ones are made for it.`);
   else if (cursor) hint('Square highlighted. Pick a tile below to place it here.');
   else if (sel) hint(`${sel.code} ${nm(sel)}. ${matchMedia('(pointer:fine)').matches ? 'Click a square to place, R to rotate.' : 'Tap a square to preview, tap again to place.'}`);
   else hint('Click a square to highlight it, then pick a tile below. Click a placed tile to select it.');
@@ -1528,7 +1541,8 @@ function renderPalette(keep){
     if (stockMode) return `<em class="tagc ${left > 0 ? 'left' : 'none'}">${left > 0 ? left + ' left' : 'none left'}</em>`;
     return used > own ? `<em class="tagc miss">missing ${used - own}</em>` : '';
   };
-  const fitCls = m => fitSet ? (fitSet.has(m.code) ? ' fit' : ' nofit') : '';
+  const pk = pickedBlock(), made = pk ? madeFor(pk.code) : null;
+  const fitCls = m => made && made.has(m.code) ? ' match' : fitSet ? (fitSet.has(m.code) ? ' fit' : ' nofit') : '';
   const card = m => `<button class="card${outOfStock(m) ? ' out' : ''}${fitCls(m)}" type="button" data-code="${m.code}" aria-pressed="${sel && sel.code===m.code}" aria-label="${m.code} ${nm(m)}, ${m.cells[0]} by ${m.cells[1]}"><img src="${m.thumb}" alt=""><b>${nm(m)}</b><span>${m.code} · ${m.cells[0]}×${m.cells[1]}</span>${tag(m)}</button>`;
   const one = m => stockMode ? card(m)
       : `<div class="cw">${card(m)}<div class="own"><button type="button" data-own="-1" data-code="${m.code}" aria-label="Own one fewer ${m.code}">−</button><span>Own <b>${owned[m.code] || 0}</b></span><button type="button" data-own="1" data-code="${m.code}" aria-label="Own one more ${m.code}">+</button></div></div>`;
@@ -1973,7 +1987,7 @@ const GUIDE = [
       '<b>Drag</b> it to move it. Drag it off the board to remove it.',
       '<b>Double-click</b> to pick up a copy, then click where it goes.',
       '<kbd>Delete</kbd> removes the selected tile.',
-      'While a tile is selected, tiles marked <b>Fits</b> in the tray can go right beside it.'] },
+      'While a tile is selected, tiles marked <b>Fits</b> in the tray can go right beside it, and a green <b>Made for it</b> tile is its designed partner (a ledge\u2019s own lava edge, say).'] },
   { v:'levels', at:'#lv-btns', t:'Build up in levels', li:[
       'Pick the level you’re working on with the numbers on the left, or keys <kbd>1</kbd> to <kbd>4</kbd>.',
       'Tiles drop onto whatever is below them, so every square needs support. Half-height tiles can stack two to a level.',
@@ -2061,7 +2075,7 @@ const TIPS = {
   view: 'View mode: look around freely, nothing on the map changes. Turn it off to keep building.',
   boards: fine ? 'Boards: + Add a board (top bar) adds a board that clips onto an edge. Drag or use the arrow keys to slide one, and R turns it. T takes you back to tiles.' : 'Boards: + Add a board (top bar) adds a board that clips onto an edge. Drag a board to slide it.',
   fluid: 'This switch shows the river as lava or water. It’s the same pieces either way.',
-  fits: 'Tiles marked Fits in the tray below can go right beside the tile you\u2019ve selected, in at least one turn and spot. It checks they physically fit, so lava only shows where it can tuck under the ledge.',
+  fits: 'Tiles marked Fits in the tray below can go right beside the tile you\u2019ve selected, in at least one turn and spot. It checks they physically fit, so lava only shows where it can tuck under the ledge. A green tile is the one made for it.',
   stock: 'My stock shows only the pieces you’ve said you own (use + under a tile in Store), with how many are left.',
 };
 let tipT = 0;
