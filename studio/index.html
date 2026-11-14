@@ -313,7 +313,7 @@ kbd{display:inline-block;min-width:1.6em;padding:1px 6px;border-radius:6px;borde
 <div class="app">
   <header class="top">
     <a class="back" href="/" aria-label="Back to Terraform home">&larr; <img class="logo-d" src="../img/logo/terraform-symbol-2tier-white.png" alt=""><img class="logo-l" src="../img/logo/terraform-symbol-2tier-black.png" alt=""><span>Terraform</span></a>
-    <h1>Studio</h1><span class="hud" title="Studio version" style="color:var(--muted);font-size:.6rem;margin-left:-6px">v 20261115-0145</span>
+    <h1>Studio</h1><span class="hud" title="Studio version" style="color:var(--muted);font-size:.6rem;margin-left:-6px">v 20261115-0150</span>
     <div class="name"><label for="map-name" class="hud" hidden>Map name</label><input id="map-name" value="Untitled map" aria-label="Map name"></div>
     <div class="savebar" role="group" aria-label="Save and browse designs">
       <button class="pill" id="save-btn" type="button" title="Save this design"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h8V3M8 21v-7h8v7"/></svg><span class="lbl">Save</span></button>
@@ -1685,17 +1685,28 @@ const pendHit = (x, y) => pending && setRay(x, y) && ray.intersectObject(pendMes
 /* drag a placed tile to shift it; it may hang off the board while you drag, but not be left there.
    Dropped right off the board, it is removed. */
 let tdrag = null;   // { b, dc, dr, on, c, r, why, off }
+let holdView = null;   // a press on the selected tile that can't move: keep the camera still until it's let go
+addEventListener('pointerup', e => { if (holdView === e.pointerId){ holdView = null; controls.enabled = true; } });
+addEventListener('pointercancel', e => { if (holdView === e.pointerId){ holdView = null; controls.enabled = true; } });
 const dragMat = new THREE.MeshStandardMaterial({ color:0x4ade80, emissive:0x4ade80, emissiveIntensity:0.45, transparent:true, opacity:0.6, flatShading:true, depthWrite:false });
 const dragMesh = new THREE.Mesh(new THREE.BufferGeometry(), dragMat); dragMesh.visible = false; scene.add(dragMesh);
 stage.addEventListener('pointerdown', e => {
-  if (e.target !== canvas || view || erase || arrange || placing || sel || boardFocus() || e.button > 0) return;
-  if (pendHit(e.clientX, e.clientY)){
+  if (e.target !== canvas || view || erase || arrange || placing || boardFocus() || e.button > 0) return;
+  if (!sel && pendHit(e.clientX, e.clientY)){
     const sq = squareAt(e.clientX, e.clientY, true); if (!sq) return;
     tdrag = { b:pending, pend:true, dc:sq.c - pending.c, dr:sq.r - pending.r, on:false, x:e.clientX, y:e.clientY, id:e.pointerId };
     controls.enabled = false; return;
   }
   const b = blockAt(e.clientX, e.clientY); if (!b) return;
-  if (supporting(b)) return;                        // tiles holding up a level stay put
+  // with a tile in hand, only the selected tile can be dragged: pressing on it moves it rather than turning the view (15 Nov 2026)
+  if (sel && b.id !== picked) return;
+  if (supporting(b)){                                // tiles holding up others stay put
+    if (b.id === picked){                            // pressing on the selected tile never turns the view
+      hint(`${b.code} is holding up the tile on top of it. Move or remove that one first.`, 'bad');
+      controls.enabled = false; holdView = e.pointerId;
+    }
+    return;
+  }
   const sq = squareAt(e.clientX, e.clientY, true); if (!sq) return;
   tdrag = { b, dc:sq.c - b.c, dr:sq.r - b.r, on:false, x:e.clientX, y:e.clientY, id:e.pointerId };
   controls.enabled = false;                          // this drag moves the tile, not the camera
@@ -2093,7 +2104,7 @@ $('tip-off').onclick = () => { const s = tipsSeen(); s.off = 1; store.set('tf-ti
 
 try {
   MODELS = await (await fetch('models.json?v=20261114-1740')).json();
-  try { MODELS = MODELS.concat(await (await fetch('models-lava.json?v=20261115-0145')).json()); } catch {}
+  try { MODELS = MODELS.concat(await (await fetch('models-lava.json?v=20261115-0150')).json()); } catch {}
   MODELS.forEach(m => BY[m.code] = m);
   for (const m of MODELS){ geos[m.code] = makeGeo(m, await decode(m.data)); try { const ps = geos[m.code].getAttribute('position').array; SHADOW[m.code] = shadowOf(ps); if (m.kind === 'shelf' || m.kind === 'fluid') COLS[m.code] = columnsOf(ps); } catch {} }
   await thumbs();
