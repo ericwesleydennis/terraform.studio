@@ -1,7 +1,7 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta name="robots" content="noindex, nofollow">
+<meta name="robots" content="noindex">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Terraform Studio</title>
@@ -313,7 +313,7 @@ kbd{display:inline-block;min-width:1.6em;padding:1px 6px;border-radius:6px;borde
 <div class="app">
   <header class="top">
     <a class="back" href="/" aria-label="Back to Terraform home">&larr; <img class="logo-d" src="../img/logo/terraform-symbol-2tier-white.png" alt=""><img class="logo-l" src="../img/logo/terraform-symbol-2tier-black.png" alt=""><span>Terraform</span></a>
-    <h1>Studio</h1><span class="hud" title="Studio version" style="color:var(--muted);font-size:.6rem;margin-left:-6px">v 20261115-0150</span>
+    <h1>Studio</h1><span class="hud" title="Studio version" style="color:var(--muted);font-size:.6rem;margin-left:-6px">v 20261115-0200</span>
     <div class="name"><label for="map-name" class="hud" hidden>Map name</label><input id="map-name" value="Untitled map" aria-label="Map name"></div>
     <div class="savebar" role="group" aria-label="Save and browse designs">
       <button class="pill" id="save-btn" type="button" title="Save this design"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h8V3M8 21v-7h8v7"/></svg><span class="lbl">Save</span></button>
@@ -1636,7 +1636,10 @@ function place(c, r){
   if (!res.ok){
     const on = cellsOf(sel, c, r, rot).some(([x,z]) => inBoard(x, z));
     if (!on){ toast(res.why); return; }
-    const m = sel; selectTile(null, true); setPending({ code:m.code, c, r, rot, level }, res.why); return;
+    // it can be put down to turn into place, but only if one of its turns would fit right here (15 Nov 2026)
+    const turns = [1, 2, 3].map(k => (rot + k) % 4).filter(q => check(sel, c, r, q, level).ok);
+    if (!turns.length){ toast(`${res.why} It won’t fit here in any turn.`); return; }
+    const m = sel; selectTile(null, true); setPending({ code:m.code, c, r, rot, level, fitsAt:turns }, res.why); return;
   }
   const b = { id:nextId++, code:sel.code, c, r, rot, level:res.lvl };
   addBlock(b); pickBlock(b.id, true); tip('placed');
@@ -1663,7 +1666,8 @@ function setPending(p, why){
   tip('red');
   pickBlock(null, true); setCursor(null); hideGhost();
   pending = p; showPending();
-  hint(`Doesn’t fit yet: ${why || 'it overlaps another tile.'} Click it or press R to rotate, or drag it. It won’t be kept unless it fits.`, 'bad');
+  const n = p.fitsAt && p.fitsAt.length ? ((p.fitsAt[0] - p.rot + 4) % 4) : 0;
+  hint(`Doesn’t fit yet: ${why || 'it overlaps another tile.'} ${n ? `It fits if you turn it ${n === 1 ? 'once' : n === 2 ? 'twice' : 'three times'}: ` : ''}click it or press R to rotate, or drag it. It goes if you place another tile first.`, 'bad');
 }
 function settle(){                                      // fits now? make it a real tile
   const p = pending, res = check(BY[p.code], p.c, p.r, p.rot, p.level);
@@ -1813,6 +1817,7 @@ const clock = new THREE.Clock();
 (function tick(){
   const t = clock.getElapsedTime();
   if (ghost.visible){ ghostMat.opacity = 0.4 + 0.25*Math.sin(t*6); padMat.opacity = 0.25 + 0.2*Math.sin(t*6); }
+  if (pendMesh.visible){ const k = 0.5 + 0.5*Math.sin(t*7); pendMat.opacity = 0.35 + 0.5*k; pendMat.emissiveIntensity = 0.2 + 0.7*k; }   // a tile that doesn't fit yet keeps flashing
   controls.update(); renderer.render(scene, camera); requestAnimationFrame(tick);
 })();
 
@@ -2104,7 +2109,7 @@ $('tip-off').onclick = () => { const s = tipsSeen(); s.off = 1; store.set('tf-ti
 
 try {
   MODELS = await (await fetch('models.json?v=20261114-1740')).json();
-  try { MODELS = MODELS.concat(await (await fetch('models-lava.json?v=20261115-0150')).json()); } catch {}
+  try { MODELS = MODELS.concat(await (await fetch('models-lava.json?v=20261115-0200')).json()); } catch {}
   MODELS.forEach(m => BY[m.code] = m);
   for (const m of MODELS){ geos[m.code] = makeGeo(m, await decode(m.data)); try { const ps = geos[m.code].getAttribute('position').array; SHADOW[m.code] = shadowOf(ps); if (m.kind === 'shelf' || m.kind === 'fluid') COLS[m.code] = columnsOf(ps); } catch {} }
   await thumbs();
