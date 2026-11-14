@@ -1,0 +1,2098 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta name="robots" content="noindex, nofollow">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Terraform Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700&family=Manrope:wght@400;500;700;800&display=swap">
+<style>
+/* Layout: full-screen editor. Top bar, 3D stage with floating tool rail, palette dock along the bottom, parts drawer on the right (bottom sheet on phones).
+   Palette: Concept B (dark cave ground, ley-teal accent, peg-board tan). The --gold token names are kept but now carry the teal accent. */
+:root{
+  color-scheme:dark;
+  --bg:#0B1214; --surface:#121C1E; --surface-2:#182628; --ink:#EAF0EC; --muted:#9DB0A9; --line:#2A3F3D;
+  --gold:#3BD9B2; --gold-ink:#06231D; --grid:#3BD9B2; --ok:#4ade80; --bad:#f87171;
+  --scene-bg:#0E1719; --board:#c9a874; --hole:#6b5636; --board-line:#7a6040; --level-tint:#ffffff;
+  --font-display:"Jost","Futura","Century Gothic",system-ui,sans-serif;
+  --font-body:"Manrope",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --font-hud:"Jost",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.5;overflow:hidden;
+  padding:env(safe-area-inset-top,0px) env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px)}
+button,select,input{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--gold);outline-offset:2px;border-radius:6px}
+.hud{font-family:var(--font-hud);font-weight:600;font-size:.7rem;letter-spacing:.14em;text-transform:uppercase}
+.app{height:100%;display:grid;grid-template-rows:auto minmax(0,1fr) auto;grid-template-columns:minmax(0,1fr)}
+
+/* top bar */
+.top{display:flex;align-items:center;gap:20px;padding:8px max(12px,env(safe-area-inset-right,0px)) 8px max(12px,env(safe-area-inset-left,0px));border-bottom:1px solid var(--line);background:var(--bg)}
+.top a.back{color:var(--muted);text-decoration:none;font-weight:700;white-space:nowrap;display:inline-flex;align-items:center;gap:10px}
+.top a.back img{height:26px;width:auto}
+.logo-l{display:none!important}
+.top h1{font-family:var(--font-display);font-weight:600;font-size:1.05rem;letter-spacing:.14em;text-transform:uppercase;margin:0;white-space:nowrap}
+.top{position:relative}
+.top .name{flex:1;min-width:0;display:flex;justify-content:center}
+@media (min-width:1000px){.top .name{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:280px;flex:none}.top .savebar{margin-left:auto}}
+.top .name input{width:100%;max-width:280px;text-align:center;background:transparent;border:1px solid transparent;border-radius:6px;padding:4px 8px;font-weight:700;color:var(--ink)}
+.top .name input:hover,.top .name input:focus{border-color:var(--line);background:var(--surface)}
+.pill{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border-radius:10px;border:1px solid var(--line);background:var(--surface);font-weight:800;cursor:pointer;white-space:nowrap}
+.pill .count{min-width:20px;padding:0 6px;border-radius:999px;background:var(--gold);color:var(--gold-ink);font-size:.8rem;text-align:center}
+@media (max-width:560px){.top a.back span,.top .name{display:none}.top{gap:12px}.pill{padding:7px 10px}}
+@media (max-width:360px){#clear-btn .lbl{display:none}}
+.savebar{display:flex;gap:8px}
+@media (max-width:700px){.savebar .lbl{display:none}}
+@media (max-width:560px){#clear-btn .lbl{display:none}.savebar{gap:6px}.top{gap:10px!important}.pill{padding:7px 9px!important}}
+.designs{width:min(640px,calc(100vw - 32px));max-height:min(78vh,720px);padding:0;border:1px solid var(--line);border-radius:14px;background:var(--surface);color:var(--ink);overflow:hidden;flex-direction:column}
+.designs[open]{display:flex}
+.designs::backdrop{background:rgba(0,0,0,.55)}
+/* guide: a step-by-step walkthrough shown once per device, and one-off tips (14 Nov 2026) */
+.gd-layer{position:fixed;inset:0;z-index:50}
+.gd-spot{position:fixed;border-radius:12px;border:2px solid var(--gold);box-shadow:0 0 0 200vmax rgba(4,8,9,.62);pointer-events:none;transition:all .25s ease}
+.gd-spot.none{border-color:transparent;left:50%!important;top:50%!important;width:0!important;height:0!important}
+.gd-svg{position:fixed;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible}
+.gd-svg line{stroke:var(--gold);stroke-width:2.5;stroke-dasharray:6 5}
+.gd-svg circle{fill:var(--gold)}
+.guide{position:fixed;width:440px;max-height:calc(100dvh - 24px);display:flex;flex-direction:column;padding:0;border:1px solid var(--gold);border-radius:16px;background:var(--surface);color:var(--ink);overflow:hidden;box-shadow:0 18px 50px rgba(0,0,0,.55);transition:left .25s ease,top .25s ease}
+@media (prefers-reduced-motion: reduce){.gd-spot,.guide{transition:none}}
+.gd-head{display:flex;align-items:center;gap:12px;padding:12px 14px 10px 18px;border-bottom:1px solid var(--line)}
+.gd-head h2{margin:0;flex:1;font-family:var(--font-display);font-size:.95rem;letter-spacing:.12em;text-transform:uppercase;font-weight:600}
+.gd-head .hud{color:var(--muted)}
+.gd-skip{min-height:34px;padding:0 12px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--muted);font:inherit;font-weight:800;font-size:.8rem;cursor:pointer}
+.gd-skip:hover{color:var(--ink)}
+.gd-body{overflow:auto;padding:14px 16px 4px}
+.gd-vid{position:relative;width:100%;max-height:36vh;aspect-ratio:49/40;border-radius:10px;overflow:hidden;background:#0E1719;border:1px solid var(--line)}
+.gd-vid video{width:100%;height:100%;object-fit:cover;display:block}
+.gd-body h3{margin:12px 0 6px;font-family:var(--font-display);font-weight:600;font-size:1.15rem;letter-spacing:.06em;text-transform:uppercase}
+.gd-body ul{margin:0;padding-left:1.1em;display:grid;gap:4px;font-size:.88rem;line-height:1.42}
+.gd-body .touch{margin:10px 0 0;font-size:.84rem;color:var(--muted)}
+kbd{display:inline-block;min-width:1.6em;padding:1px 6px;border-radius:6px;border:1px solid var(--line);border-bottom-width:2px;background:var(--surface-2);font:700 .8rem/1.4 var(--font-body);text-align:center;color:var(--ink)}
+.gd-keys{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:.9rem;align-items:center;margin:4px 0 8px}
+.gd-foot{display:flex;align-items:center;gap:10px;padding:10px 16px 14px}
+.gd-dots{display:flex;gap:6px;flex:1;flex-wrap:wrap}
+.gd-dots button{width:9px;height:9px;padding:0;border-radius:50%;border:0;background:var(--line);cursor:pointer}
+.gd-dots button[aria-current="step"]{background:var(--gold);width:22px;border-radius:5px}
+.gd-foot .btn{padding:9px 16px}
+@media (max-width:560px){.gd-body h3{font-size:1rem}.gd-body ul{font-size:.88rem}.gd-vid{aspect-ratio:49/34}}
+.tip{position:absolute;right:76px;top:12px;z-index:5;max-width:min(360px,calc(100% - 100px));padding:12px 14px;border-radius:12px;background:var(--surface);border:1px solid var(--gold);box-shadow:0 10px 30px rgba(0,0,0,.45);font-size:.88rem;line-height:1.4}
+.tip b{display:block;color:var(--gold);font-family:var(--font-hud);font-size:.68rem;letter-spacing:.14em;text-transform:uppercase;margin-bottom:4px}
+.tip .row{display:flex;gap:8px;margin-top:10px}
+.tip .row button{min-height:30px;padding:0 10px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--muted);font:inherit;font-weight:800;font-size:.78rem;cursor:pointer}
+.tip .row button.ok{background:var(--gold);border-color:var(--gold);color:var(--gold-ink)}
+@media (max-width:820px){.tip{left:12px;right:12px;top:auto;bottom:12px;max-width:none}}
+#guide-btn{min-width:38px;justify-content:center;font-weight:800}
+.sm-ico{display:none}
+@media (max-width:560px){#parts-btn .lbl,#cart-btn .lbl{display:none}.sm-ico{display:block}.top{gap:6px!important}}
+@media (max-width:400px){.top{gap:4px!important;padding-left:8px!important;padding-right:8px!important}.pill{padding:7px 7px!important}.top a.back{gap:2px}}
+@media (max-width:700px){#guide-btn .lbl{display:none}}
+.ds-head{display:flex;align-items:center;gap:14px;padding:14px 16px 10px;border-bottom:1px solid var(--line)}
+.ds-head h2{margin:0;font-family:var(--font-display);font-size:1rem;letter-spacing:.12em;text-transform:uppercase;font-weight:600}
+.ds-tabs{display:flex;gap:4px;flex:1}
+.ds-tabs button{min-height:34px;padding:0 12px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--muted);font:inherit;font-weight:800;font-size:.8rem;cursor:pointer}
+.ds-tabs button[aria-selected="true"]{background:var(--gold);color:var(--gold-ink);border-color:var(--gold)}
+.ds-x{width:34px;height:34px;border-radius:8px;border:1px solid var(--line);background:transparent;color:var(--ink);font-size:1.3rem;cursor:pointer}
+.ds-search{display:block;padding:12px 16px 0}
+.ds-search input{width:100%;min-height:38px;border-radius:9px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font:inherit;padding:0 12px}
+.ds-note{margin:8px 16px 0;color:var(--muted);font-size:.82rem;min-height:1em}
+.ds-list{list-style:none;margin:0;padding:8px 16px 16px;overflow:auto;display:grid;gap:8px}
+.ds-list li{display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:center;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface-2)}
+.ds-list b{font-size:.92rem}
+.ds-list .meta{grid-column:1;color:var(--muted);font-size:.78rem}
+.ds-list .acts{grid-column:2;grid-row:1/span 2;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+.ds-list .acts button{min-height:34px;padding:0 10px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:.78rem;font-weight:700;cursor:pointer}
+.ds-list .acts button.go{background:var(--gold);color:var(--gold-ink);border-color:var(--gold)}
+.ds-list .acts button.warn{border-color:#B9574F;color:#f1b5ae}
+.ds-list .acts button[aria-pressed="true"]{border-color:var(--gold);color:var(--gold)}
+.ds-list .empty{display:block;color:var(--muted);text-align:center;border-style:dashed}
+@media (max-width:520px){.ds-list li{grid-template-columns:1fr}.ds-list .acts{grid-column:1;grid-row:auto;justify-content:flex-start}}
+@media (max-width:440px){.top h1{display:none}}
+
+/* main */
+.main{position:relative;display:grid;grid-template-columns:minmax(0,1fr) 300px;min-height:0;overflow:hidden}
+.stage{position:relative;min-width:0;min-height:0;background:var(--scene-bg)}
+.stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block;touch-action:none}
+.rail{position:absolute;left:10px;top:10px;display:flex;flex-direction:column;gap:8px;z-index:2;transform-origin:0 0}
+@media (min-width:821px){.rail.two{flex-direction:row;align-items:flex-start}}
+
+@media (min-width:821px) and (max-height:760px){.tool{width:36px;height:36px}}
+.size-pop .presets{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.size-pop .presets button,.size-pop .sides button,.size-pop .pad button,.size-pop .bact button{min-height:36px;border-radius:8px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font:inherit;font-size:.8rem;font-weight:700;cursor:pointer}
+.size-pop .presets button small{display:block;font-weight:400;color:var(--muted);font-size:.66rem}
+.size-pop .presets button[aria-pressed="true"],.size-pop #b-arrange[aria-pressed="true"]{border-color:var(--gold);background:color-mix(in srgb,var(--gold) 18%,var(--surface-2))}
+.size-pop .sect{display:flex;flex-direction:column;gap:6px;padding-top:10px;border-top:1px solid var(--line)}
+.size-pop .sect > span{font-size:.72rem;color:var(--muted);letter-spacing:.06em;text-transform:uppercase}
+.size-pop .sides{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.size-pop select{min-height:36px;border-radius:8px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font:inherit;padding:0 8px}
+.size-pop .pad{display:grid;grid-template-columns:repeat(3,36px);grid-template-rows:repeat(2,36px);gap:4px;justify-content:center}
+.size-pop .pad button:nth-child(1){grid-column:2}.size-pop .pad button:nth-child(2){grid-column:1;grid-row:2}.size-pop .pad button:nth-child(3){grid-column:2;grid-row:2}.size-pop .pad button:nth-child(4){grid-column:3;grid-row:2}
+.size-pop .bact{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.size-pop button:disabled{opacity:.4;cursor:default}
+.size-pop{max-height:calc(100% - 20px);overflow:auto}
+#size-pop{width:280px}
+.placebar{position:absolute;left:50%;top:12px;transform:translateX(-50%);z-index:4;display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:12px;background:var(--surface);border:1px solid var(--gold);box-shadow:0 10px 30px rgba(0,0,0,.4);max-width:calc(100% - 24px);flex-wrap:wrap;justify-content:center}
+.placebar b{font-size:.85rem}
+.placebar button{min-height:38px;padding:0 12px;border-radius:9px;border:1px solid var(--line);background:var(--surface-2);color:var(--ink);font:inherit;font-weight:700;font-size:.82rem;cursor:pointer}
+.placebar button.go{background:var(--gold);color:var(--gold-ink);border-color:var(--gold)}
+.placebar button:disabled{opacity:.45;cursor:default}
+.placebar .seg{display:inline-flex;gap:0}
+.placebar .seg button{border-radius:0;margin-left:-1px}
+.placebar .seg button:first-child{border-radius:9px 0 0 9px;margin-left:0}
+.placebar .seg button:last-child{border-radius:0 9px 9px 0}
+.placebar .seg button[aria-checked="true"]{background:var(--gold);color:var(--gold-ink);border-color:var(--gold);position:relative}
+.size-pop .sides button{font-size:.74rem}
+.zoom{position:absolute;right:10px;top:10px;z-index:2;display:flex;flex-direction:column;align-items:center;gap:4px;padding:6px 4px;border-radius:12px;background:color-mix(in srgb,var(--surface) 92%,transparent);border:1px solid var(--line)}
+.zoom .hud{color:var(--muted);font-size:.62rem}
+.zoom button{width:36px;height:36px;border-radius:9px;border:0;background:transparent;color:var(--ink);font-size:1.3rem;font-weight:700;cursor:pointer;line-height:1}
+.zoom button:hover{background:var(--surface-2)}
+.zoom .zhome{border-top:1px solid var(--line);border-radius:0 0 9px 9px;margin-top:2px;display:grid;place-items:center}
+.zoom input{writing-mode:vertical-lr;direction:rtl;width:28px;height:150px;margin:2px 0;accent-color:var(--gold);cursor:pointer}
+@media (max-height:560px){.zoom input{height:90px}}
+.group{display:flex;flex-direction:column;gap:2px;padding:4px;border-radius:12px;background:color-mix(in srgb,var(--surface) 92%,transparent);border:1px solid var(--line)}
+.group .hud{text-align:center;color:var(--muted);padding:2px 0}
+.group .gh{font-size:.56rem;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);text-align:center;padding:2px 0 3px;border-bottom:1px solid var(--line);margin-bottom:2px}
+.group.on{border-color:var(--gold);box-shadow:0 0 0 1px color-mix(in srgb,var(--gold) 40%,transparent)}
+.group.on .gh{color:var(--gold)}
+.lv{display:flex;flex-direction:column;gap:2px}
+.group .gh.sub{border-top:1px solid var(--line);margin-top:4px;padding-top:5px}
+@media (min-width:821px){.modes{width:58px}.mtab{width:100%!important;min-height:38px;font-size:.62rem!important}.lv .tool{width:100%;height:46px;font-size:1.1rem}}
+.mtab{width:46px;min-height:34px;border-radius:8px;border:1px solid transparent;background:transparent;color:var(--muted);font:inherit;font-size:.56rem;font-weight:800;letter-spacing:.02em;text-transform:uppercase;cursor:pointer;padding:0}
+.mtab:hover{color:var(--ink);background:var(--surface-2)}
+.mtab[aria-selected="true"]{background:var(--gold);color:var(--gold-ink)}
+.tool[hidden]{display:none}
+.tool{width:42px;height:42px;display:grid;place-items:center;border-radius:9px;border:0;background:transparent;cursor:pointer;color:var(--ink);font-weight:800;position:relative}
+.tool:hover{background:var(--surface-2)}
+.tool[aria-pressed="true"],.tool[aria-expanded="true"]{background:var(--gold);color:var(--gold-ink)}
+.tool.ready{box-shadow:inset 0 0 0 2px var(--gold);color:var(--gold)}
+.tool:disabled{opacity:.35;cursor:default}
+.tool svg{width:22px;height:22px}
+.tool .n{position:absolute;right:3px;bottom:2px;font-size:.6rem;font-family:var(--font-hud);opacity:.75}
+.hint{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);max-width:calc(100% - 24px);display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:12px;background:color-mix(in srgb,var(--surface) 94%,transparent);border:1px solid var(--line);font-size:.9rem;z-index:2}
+.hint.bad{border-color:var(--bad)}
+.hint.ok{border-color:var(--ok)}
+.hint button{border:0;border-radius:8px;padding:6px 12px;font-weight:800;cursor:pointer;background:var(--ok);color:#06210f}
+.status{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);z-index:1}
+.size-pop{position:absolute;left:62px;top:10px;z-index:3;width:230px;padding:14px;border-radius:12px;background:var(--surface);border:1px solid var(--line);display:flex;flex-direction:column;gap:10px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.colour-pop{width:268px}
+.swatches{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.swatches button{aspect-ratio:1;border-radius:50%;border:2px solid var(--line);cursor:pointer;padding:0}
+.swatches button[aria-checked="true"]{border-color:var(--gold);box-shadow:0 0 0 2px var(--gold)}
+.dot{width:20px;height:20px;border-radius:50%;border:2px solid var(--ink);display:block}
+.cdot{display:inline-block;width:10px;height:10px;border-radius:50%;border:1px solid var(--line);vertical-align:middle;margin-right:4px}
+.size-pop .row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.step{display:flex;align-items:center;gap:6px}
+.step button{width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:var(--surface-2);cursor:pointer;font-weight:800}
+.step output{min-width:28px;text-align:center;font-weight:800;font-variant-numeric:tabular-nums}
+.size-pop p{margin:0;font-size:.82rem;color:var(--muted)}
+.toast{position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);z-index:6;padding:12px 18px;border-radius:12px;font-weight:800;max-width:min(420px,calc(100% - 32px));text-align:center;line-height:1.35;box-shadow:0 14px 34px rgba(0,0,0,.5);pointer-events:none;transition:opacity .4s ease}
+.toast.err{background:#B9574F;color:#FFF5F3;border:1px solid #E8A39C}
+.toast:not([hidden]){animation:toastIn .26s cubic-bezier(.2,.8,.3,1.2)}
+@keyframes toastIn{from{opacity:0;transform:translate(-50%,-50%) scale(.9)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+@media (prefers-reduced-motion: reduce){.toast:not([hidden]){animation:none}}
+.toast.info{background:var(--gold);color:var(--gold-ink)}
+.toast.out{opacity:0}
+
+/* drawer */
+.drawer{border-left:1px solid var(--line);background:var(--surface);display:flex;flex-direction:column;min-height:0}
+.dtabs{display:flex;border-bottom:1px solid var(--line)}
+.dtabs button{flex:1;padding:10px;border:0;background:transparent;font-weight:800;color:var(--muted);cursor:pointer;border-bottom:3px solid transparent}
+.dtabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--gold)}
+.dbody{flex:1;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
+.parts{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.parts li{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:10px;align-items:center;padding:6px;border-radius:8px;background:var(--surface-2)}
+.parts img{width:40px;height:40px;border-radius:6px;background:var(--scene-bg);object-fit:cover}
+.parts b{display:block;font-size:.9rem;line-height:1.2}
+.parts span{font-size:.75rem;color:var(--muted)}
+.parts .q{font-family:var(--font-display);font-weight:600;font-size:1.05rem}
+.parts li.empty{display:block;background:transparent;padding:10px 4px;line-height:1.45;white-space:normal}
+.parts .rm{border:0;background:transparent;color:var(--muted);cursor:pointer;font-size:.8rem;text-decoration:underline}
+.empty{color:var(--muted);font-size:.9rem;padding:8px 2px}
+.totals{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.totals div{background:var(--surface-2);border-radius:8px;padding:8px}
+.totals b{display:block;font-family:var(--font-display);font-weight:600;font-size:1.05rem;line-height:1.1}
+.totals span{font-size:.7rem;color:var(--muted)}
+.dfoot{padding:12px;border-top:1px solid var(--line);display:flex;flex-direction:column;gap:8px}
+.btn{display:inline-flex;justify-content:center;align-items:center;gap:8px;padding:11px 16px;border-radius:10px;font-weight:800;cursor:pointer;border:2px solid var(--gold);background:var(--gold);color:var(--gold-ink);box-shadow:0 4px 0 color-mix(in srgb,var(--gold) 55%,#000)}
+.btn:active{transform:translateY(3px);box-shadow:none}
+.btn:disabled{opacity:.45;cursor:default;transform:none}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line);box-shadow:none}
+.dfoot p{margin:0;font-size:.78rem;color:var(--muted);text-align:center}
+.drawer .close{display:none}
+@media (max-width:820px){
+  .rail{left:8px;right:8px;top:8px;flex-direction:row;justify-content:space-between;gap:6px;overflow-x:auto}
+  .group{flex-direction:row;align-items:center;padding:3px}
+  .lv{flex-direction:row-reverse}
+  .group .hud,.group .gh{display:none}
+  .mtab{width:auto;min-height:30px;padding:0 8px}
+  .tool{width:30px;height:30px}
+  .colour-pop{width:min(268px,calc(100% - 16px))}
+  .tool svg{width:18px;height:18px}
+  .size-pop{left:auto;right:56px;top:54px}
+  .zoom{top:60px}
+  .zoom input{height:110px}
+  .main{grid-template-columns:minmax(0,1fr)}
+  .drawer{position:absolute;left:0;right:0;bottom:0;max-height:72%;z-index:4;border-left:0;border-top:1px solid var(--line);border-radius:16px 16px 0 0;box-shadow:0 -10px 30px rgba(0,0,0,.35);transform:translateY(105%);transition:transform .2s}
+  .drawer.open{transform:none}
+  .drawer .close{display:block;position:absolute;right:8px;top:6px;border:0;background:transparent;font-size:1.4rem;cursor:pointer;color:var(--muted)}
+  .dtabs{padding-right:40px}
+}
+@media (min-width:821px){ #parts-btn{display:none} }
+@media (prefers-reduced-motion: reduce){.drawer{transition:none}}
+
+/* palette dock */
+.dock{min-width:0;border-top:1px solid var(--line);background:var(--bg);padding:8px max(10px,env(safe-area-inset-right,0px)) 10px max(10px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:8px}
+.dtop{display:flex;gap:10px;align-items:center;min-width:0}
+.dtop .cats{flex:1;min-width:0}
+.stockseg{display:inline-flex;flex:none;border:1px solid var(--line);border-radius:999px;padding:2px;background:var(--surface)}
+.stockseg button{border:0;background:transparent;color:var(--muted);font:inherit;font-weight:800;font-size:.8rem;padding:4px 11px;border-radius:999px;cursor:pointer;white-space:nowrap}
+.stockseg button[aria-checked="true"]{background:var(--gold);color:var(--gold-ink)}
+.fluidseg[hidden]{display:none}
+#f-lava[aria-checked="true"]{background:#ff6a13;color:#1a0b02}
+#f-water[aria-checked="true"]{background:#2f86d8;color:#fff}
+.cw{flex:none;display:flex;flex-direction:column;gap:4px;scroll-snap-align:start}
+.sg{flex:none;display:flex;gap:8px;align-items:stretch}
+.sg + .sg{margin-left:6px;padding-left:10px;border-left:1px solid var(--line)}
+.sg-h{flex:none;scroll-snap-align:start;writing-mode:vertical-rl;transform:rotate(180deg);text-align:center;font-family:var(--font-hud);font-size:.72rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);padding:4px 0}
+.cw .card{scroll-snap-align:none}
+.own{display:flex;align-items:center;justify-content:space-between;gap:4px;font-size:.7rem;color:var(--muted)}
+.own button{width:26px;height:24px;border-radius:7px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-weight:800;cursor:pointer;line-height:1}
+.own b{font-size:.72rem;color:var(--ink)}
+.tagc{display:inline-block;margin-top:2px;padding:1px 7px;border-radius:999px;font-family:var(--font-hud);font-size:.6rem;font-weight:700;font-style:normal}
+.tagc.left{background:color-mix(in srgb,var(--gold) 20%,transparent);color:var(--gold)}
+.tagc.none{background:color-mix(in srgb,#C9574E 22%,transparent);color:#E8A39C}
+.tagc.miss{background:color-mix(in srgb,#C9574E 22%,transparent);color:#E8A39C}
+.card.out{opacity:.5}
+/* tiles that fit beside the selected placed tile (14 Nov 2026) */
+.card.fit{border-color:var(--gold);box-shadow:0 0 0 2px color-mix(in srgb,var(--gold) 45%,transparent)}
+.card.fit::after{content:'Fits';position:absolute;top:8px;right:8px;padding:1px 7px;border-radius:999px;background:var(--gold);color:var(--gold-ink);font:700 .6rem/1.5 var(--font-hud);letter-spacing:.06em;text-transform:uppercase}
+.card.nofit{opacity:.38}
+.card.nofit:hover{opacity:.8}
+.card{position:relative}
+.card .tagc{position:absolute;top:10px;left:10px;margin:0;backdrop-filter:blur(2px)}
+.tagc.left,.tagc.none,.tagc.miss{background:rgba(11,18,20,.82)}
+.tagc.left{color:var(--gold)}
+.strip .emptynote{color:var(--muted);font-size:.85rem;padding:14px 6px;max-width:520px}
+.lvtog{display:flex;align-items:center;justify-content:center;gap:4px;width:100%;border:0;border-top:1px solid var(--line);background:transparent;cursor:pointer;font-family:inherit;font-size:.56rem;font-weight:800;letter-spacing:.02em}
+@media (min-width:821px){.group .gh.lvtog{font-size:.62rem}}
+.lvtog:hover{color:var(--ink)}
+@media (min-width:821px){.lv.shut{display:none}}
+.cats{display:flex;gap:6px;overflow-x:auto}
+.cats button{flex:none;padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--muted);font-weight:800;font-size:.85rem;cursor:pointer}
+.cats button[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.bar{display:flex;gap:8px;align-items:stretch;min-width:0}
+/* subcategories under each range: pick one to show just those tiles (14 Nov 2026) */
+.subs{display:flex;gap:6px;overflow-x:auto;scrollbar-width:none;min-height:0}
+.subs:empty{display:none}
+.subs button{flex:none;padding:3px 10px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--muted);font:inherit;font-weight:700;font-size:.76rem;cursor:pointer}
+.subs button:hover{color:var(--ink)}
+.subs button[aria-pressed="true"]{background:color-mix(in srgb,var(--gold) 18%,transparent);border-color:var(--gold);color:var(--gold)}
+.nudge{flex:none;width:30px;border-radius:8px;border:1px solid var(--line);background:var(--surface);cursor:pointer;font-weight:800;font-size:1.1rem}
+.nudge:disabled{opacity:.3;cursor:default}
+.strip{flex:1;min-width:0;display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x proximity;padding-bottom:4px;scrollbar-width:thin}
+.card{flex:none;width:118px;scroll-snap-align:start;display:flex;flex-direction:column;gap:4px;padding:6px;border-radius:10px;border:2px solid var(--line);background:var(--surface);cursor:grab;user-select:none;-webkit-user-select:none;touch-action:pan-x;text-align:left}
+.card[aria-pressed="true"]{border-color:var(--gold);box-shadow:0 0 0 2px color-mix(in srgb,var(--gold) 35%,transparent)}
+.card img{width:100%;aspect-ratio:4/3;border-radius:6px;background:var(--scene-bg);object-fit:cover;pointer-events:none;-webkit-user-drag:none}
+.card b{font-size:.8rem;line-height:1.15;display:block}
+.card span{font-family:var(--font-hud);font-size:.6rem;color:var(--muted)}
+.pick{flex:none;display:flex;flex-direction:column;justify-content:center;gap:4px;padding-left:8px;border-left:1px solid var(--line)}
+.pick select{max-width:170px;padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--surface);font-weight:700}
+.pick label{color:var(--muted)}
+.dragchip{position:fixed;z-index:20;pointer-events:none;width:84px;padding:4px;border-radius:10px;background:var(--surface);border:2px solid var(--gold);transform:translate(-50%,-110%);box-shadow:0 8px 20px rgba(0,0,0,.4)}
+.dragchip img{width:100%;display:block;border-radius:6px}
+@media (max-width:560px){.card{width:96px}.nudge,.pick label{display:none}.pick select{max-width:104px;font-size:.85rem}}
+</style>
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <a class="back" href="https://weaverstudios.com.au/" aria-label="Back to Terraform home">&larr; <img class="logo-d" src="img/logo/terraform-symbol-2tier-white.png" alt=""><img class="logo-l" src="img/logo/terraform-symbol-2tier-black.png" alt=""><span>Terraform</span></a>
+    <h1>Studio</h1><span class="hud" title="Studio version" style="color:var(--muted);font-size:.6rem;margin-left:-6px">v 20261114-1740</span>
+    <div class="name"><label for="map-name" class="hud" hidden>Map name</label><input id="map-name" value="Untitled map" aria-label="Map name"></div>
+    <div class="savebar" role="group" aria-label="Save and browse designs">
+      <button class="pill" id="save-btn" type="button" title="Save this design"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h8V3M8 21v-7h8v7"/></svg><span class="lbl">Save</span></button>
+      <button class="pill" id="designs-btn" type="button" aria-haspopup="dialog" title="My designs and browse"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><circle cx="17.5" cy="17.5" r="3"/><path d="M20 20l2 2"/></svg><span class="lbl">Designs</span></button>
+    </div>
+    <button class="pill" id="guide-btn" type="button" aria-haspopup="dialog" title="How to use the Studio"><span aria-hidden="true">?</span><span class="lbl">Guide</span></button>
+    <button class="pill" id="parts-btn" type="button" aria-controls="drawer" aria-expanded="false" aria-label="Parts on this map"><svg class="sm-ico" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3l9 5-9 5-9-5z"/><path d="M3 13l9 5 9-5"/></svg><span class="lbl">Parts</span> <span class="count" id="parts-count">0</span></button>
+    <button class="pill" id="clear-btn" type="button" aria-label="Clear all tiles from the board" title="Clear board">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 21h18M6 17l9-9 4 4-9 9H6v-4z"/><path d="M13 6l2-2 4 4-2 2"/></svg><span class="lbl">Clear</span></button>
+    <button class="pill" id="cart-btn" type="button" aria-label="Cart"><svg class="sm-ico" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 4h2l2.4 11h10.2L20 8H6.2"/><circle cx="9" cy="19.5" r="1.4"/><circle cx="17" cy="19.5" r="1.4"/></svg><span class="lbl">Cart</span> <span class="count" id="cart-count">0</span></button>
+  </header>
+
+  <div class="main">
+    <div class="stage" id="stage">
+      <canvas id="c" aria-label="3D build area. Drag to orbit, scroll, pinch or use the zoom slider to zoom. Click a square to highlight it, then pick a tile."></canvas>
+      <div class="status" id="status">Loading tiles…</div>
+
+      <div class="rail" id="rail">
+        <div class="group modes" role="tablist" aria-label="What you are editing">
+          <span class="gh">Edit</span>
+          <button class="mtab" role="tab" type="button" id="m-tiles" aria-selected="true" title="Edit tiles (T)">Tiles</button>
+          <button class="mtab" role="tab" type="button" id="m-boards" aria-selected="false" title="Edit boards (B)">Boards</button>
+          <button class="gh sub lvtog" type="button" id="lv-tog" aria-expanded="true" aria-controls="lv-btns">Level ▾</button>
+          <div class="lv" id="lv-btns" role="group" aria-label="Working level">
+            <button class="tool" type="button" data-level="3" aria-pressed="false" aria-label="Work on level 4">4</button>
+            <button class="tool" type="button" data-level="2" aria-pressed="false" aria-label="Work on level 3">3</button>
+            <button class="tool" type="button" data-level="1" aria-pressed="false" aria-label="Work on level 2">2</button>
+            <button class="tool" type="button" data-level="0" aria-pressed="true" aria-label="Work on level 1">1</button>
+          </div>
+        </div>
+        <div class="group" id="g-tiles" role="group" aria-label="Tools">
+          <span class="gh" id="tools-h">Tiles</span>
+          <button class="tool" type="button" id="t-addb" aria-pressed="false" aria-label="Add a board" title="Add a board" hidden>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="12" height="12" rx="1.5"/><path d="M19 9v8M15 13h8"/></svg></button>
+          <button class="tool" type="button" id="t-view" aria-pressed="false" aria-label="View mode (V)" title="View mode (V)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+          <button class="tool" type="button" id="t-move" aria-pressed="false" aria-label="One finger orbits the view. Tap to switch to moving the board (M)" title="Orbit / move (M)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="ico-orbit"><ellipse cx="12" cy="12" rx="9" ry="4"/><path d="M12 3v18"/><path d="M17 6l2 2-2 2"/></svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="ico-move" hidden><path d="M12 2v20M2 12h20M12 2l-3 3M12 2l3 3M12 22l-3-3M12 22l3-3M2 12l3-3M2 12l3 3M22 12l-3-3M22 12l-3 3"/></svg></button>
+          <button class="tool" type="button" id="t-rot" aria-label="Rotate tile (R)" title="Rotate (R)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/></svg></button>
+          <button class="tool" type="button" id="t-erase" aria-pressed="false" aria-label="Remove tiles (E)" title="Remove (E)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></button>
+          <button class="tool" type="button" id="t-undo" aria-label="Undo (Ctrl+Z)" title="Undo" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/></svg></button>
+          <button class="tool" type="button" id="t-colour" aria-expanded="false" aria-controls="colour-pop" aria-label="Filament colour" title="Filament colour">
+            <span class="dot" id="colour-dot"></span></button>
+        </div>
+      </div>
+
+      <div class="zoom" role="group" aria-label="Zoom">
+        <span class="hud">Zoom</span>
+        <button type="button" id="z-in" aria-label="Zoom in (+)" title="Zoom in (+)">+</button>
+        <input type="range" id="z-range" min="0" max="100" step="1" value="50" aria-label="Zoom level">
+        <button type="button" id="z-out" aria-label="Zoom out (−)" title="Zoom out (−)">−</button>
+        <button type="button" id="z-home" class="zhome" aria-label="Reset the view (F)" title="Reset the view (F)"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="2" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg></button>
+      </div>
+
+      <div class="size-pop colour-pop" id="colour-pop" hidden>
+        <strong>Filament colour</strong>
+        <div class="swatches" id="swatches" role="radiogroup" aria-label="Bambu Lab PLA Basic colours"></div>
+        <p id="colour-name">Blue Grey</p>
+        <p class="hud" style="font-size:.6rem">Bambu Lab PLA Basic range · on-screen colour is approximate</p>
+      </div>
+
+      <div class="placebar" id="placebar" hidden role="group" aria-label="Adding a board">
+        <b>Add a board</b>
+        <span class="seg" role="radiogroup" aria-label="Board size">
+          <button type="button" data-psize="6x8" role="radio" aria-checked="false">6 × 8</button>
+          <button type="button" data-psize="8x12" role="radio" aria-checked="true">8 × 12</button>
+          <button type="button" data-psize="12x16" role="radio" aria-checked="false">12 × 16</button>
+        </span>
+        <button type="button" id="pb-turn" title="Rotate 90° (R)">⟳ 90°</button>
+        <button type="button" class="go" id="pb-go">Place here</button>
+        <button type="button" id="pb-cancel">Cancel</button>
+      </div>
+      <div class="placebar" id="movebar" hidden role="group" aria-label="Moving boards">
+        <b id="mb-which">Board 1</b>
+        <span class="seg"><button type="button" data-mv="-1,0" aria-label="Slide left">←</button><button type="button" data-mv="0,-1" aria-label="Slide up">↑</button><button type="button" data-mv="0,1" aria-label="Slide down">↓</button><button type="button" data-mv="1,0" aria-label="Slide right">→</button></span>
+        <button type="button" id="mb-rot">⟳ 90°</button>
+        <button type="button" id="mb-add">+ Add a board</button>
+        <button type="button" class="go" id="mb-done">Back to tiles</button>
+      </div>
+      <div class="hint" id="hint" role="status"><span id="hint-text">Pick a tile below, then tap the board.</span><button type="button" id="place-btn" hidden>Place</button></div>
+      <div class="toast" id="toast" hidden></div>
+      <div class="tip" id="tip" role="status" hidden><b>Tip</b><span id="tip-text"></span><div class="row"><button type="button" class="ok" id="tip-ok">Got it</button><button type="button" id="tip-off">No more tips</button></div></div>
+    </div>
+
+    <div class="gd-layer" id="gd-layer" hidden>
+      <div class="gd-spot" id="gd-spot"></div>
+      <svg class="gd-svg" aria-hidden="true"><line id="gd-ln"/><circle id="gd-dot" r="5"/></svg>
+      <div class="guide" id="guide" role="dialog" aria-modal="true" aria-labelledby="gd-title">
+        <div class="gd-head"><h2 id="gd-title">Studio guide</h2><span class="hud" id="gd-count"></span><button type="button" class="gd-skip" id="gd-skip">Skip guide</button></div>
+        <div class="gd-body" id="gd-body"></div>
+        <div class="gd-foot"><div class="gd-dots" id="gd-dots" role="group" aria-label="Guide steps"></div>
+          <button type="button" class="btn ghost" id="gd-back">Back</button><button type="button" class="btn" id="gd-next">Next</button></div>
+      </div>
+    </div>
+    <dialog class="designs" id="designs" aria-labelledby="ds-title">
+      <div class="ds-head">
+        <h2 id="ds-title">Designs</h2>
+        <div class="ds-tabs" role="tablist" aria-label="Which designs">
+          <button role="tab" type="button" id="ds-mine" aria-selected="true">My designs</button>
+          <button role="tab" type="button" id="ds-browse" aria-selected="false">Browse</button>
+        </div>
+        <button class="ds-x" type="button" id="ds-close" aria-label="Close">&times;</button>
+      </div>
+      <label class="ds-search"><input id="ds-q" type="search" aria-label="Search designs" placeholder="Search by name, piece code or maker" autocomplete="off"></label>
+      <p class="ds-note" id="ds-note" role="status"></p>
+      <ul class="ds-list" id="ds-list"></ul>
+    </dialog>
+
+    <aside class="drawer" id="drawer" aria-label="Parts and cart">
+      <button class="close" type="button" id="drawer-close" aria-label="Close">&times;</button>
+      <div class="dtabs" role="tablist">
+        <button role="tab" id="tab-parts" aria-selected="true" type="button">This map</button>
+        <button role="tab" id="tab-cart" aria-selected="false" type="button">Cart</button>
+      </div>
+      <div class="dbody" id="pane-parts">
+        <div class="totals">
+          <div><b id="tot-tiles">0</b><span>tiles</span></div>
+          <div><b id="tot-levels">0</b><span>levels</span></div>
+          <div><b id="tot-board">96</b><span>board spaces</span></div>
+          <div><b id="tot-grid">12×8</b><span>grid size</span></div>
+        </div>
+        <ul class="parts" id="parts"></ul>
+      </div>
+      <div class="dbody" id="pane-cart" hidden>
+        <ul class="parts" id="cart"></ul>
+      </div>
+      <div class="dfoot" id="foot-parts">
+        <button class="btn" type="button" id="add-missing" disabled>Add only missing to cart</button>
+        <button class="btn ghost" type="button" id="add-cart" disabled>Add every tile to cart</button>
+        <p id="miss-note">Set what you own in the Store view (the + and − under each piece).</p>
+      </div>
+      <div class="dfoot" id="foot-cart" hidden>
+        <button class="btn" type="button" disabled>Checkout</button>
+        <p>The shop opens with the Kickstarter. Your cart is kept on this device.</p>
+        <button class="btn ghost" type="button" id="empty-cart">Empty cart</button>
+      </div>
+    </aside>
+  </div>
+
+  <div class="dock">
+    <div class="dtop">
+      <div class="stockseg" role="radiogroup" aria-label="Which pieces to show">
+        <button type="button" role="radio" id="v-stock" aria-checked="false" title="Only the pieces you own, with how many are left">My stock</button>
+        <button type="button" role="radio" id="v-store" aria-checked="true" title="Every piece in the store, and what you're missing">Store</button>
+      </div>
+      <div class="cats" role="tablist" aria-label="Tile categories" id="cats"></div>
+      <div class="stockseg fluidseg" role="radiogroup" aria-label="Lava or water" id="fluidseg" hidden>
+        <button type="button" role="radio" id="f-lava" aria-checked="true" title="Show the river pieces as lava">Lava</button>
+        <button type="button" role="radio" id="f-water" aria-checked="false" title="Show the river pieces as water">Water</button>
+      </div>
+    </div>
+    <div class="subs" id="subs" role="group" aria-label="Tile types"></div>
+    <div class="bar">
+      <button class="nudge" type="button" id="nudge-l" aria-label="Scroll tiles left">&lsaquo;</button>
+      <div class="strip" id="strip" aria-label="Tiles in this category"></div>
+      <button class="nudge" type="button" id="nudge-r" aria-label="Scroll tiles right">&rsaquo;</button>
+      <div class="pick">
+        <label for="pick" class="hud">All in category</label>
+        <select id="pick"></select>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script type="importmap">
+{ "imports": {
+  "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+  "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+} }
+</script>
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const P = 25, PITCH = 24.9, LV = 26.25, MAXL = 4, MIN = 4, MAX = 30;
+const $ = id => document.getElementById(id);
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const store = {
+  get(k){ try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
+  set(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
+};
+// fluid pieces (lava or water) have their own tab; the land pieces they run past are the Riverbed set (14 Nov 2026)
+const FLUIDTAB = 'Lava / River';
+// the tray is one tab per range (P1000 interiors, P2000 castles, P3000 caves, P4000 riverbed and its lava), each split into
+// labelled groups (14 Nov 2026)
+const codeNum = m => parseInt(m.code.slice(1), 10) || 0;
+const catOf = m => (m.kind === 'fluid' || m.kind === 'insert') ? FLUIDTAB
+  : { 1:'Interiors', 2:'Castles', 3:'Caves', 4:'Riverbed' }[Math.floor(codeNum(m) / 1000)] || 'Misc';
+const TABS = ['Interiors', 'Castles', 'Caves', 'Riverbed', FLUIDTAB, 'Misc'];
+function groupOf(m){
+  const n = codeNum(m), c = catOf(m);
+  if (c === 'Interiors') return [1001, 1010, 1011, 1012].includes(n) ? 'Base' : [1002, 1013, 1014].includes(n) ? 'Walls' : [1004, 1005, 1015, 1016].includes(n) ? 'Corners' : [1006, 1007].includes(n) ? 'Corridors' : n === 1003 ? 'Doors' : [1008, 1009].includes(n) ? 'Diagonal' : 'Misc';
+  if (c === 'Castles') return n <= 2009 ? 'Base' : n <= 2019 ? 'Half height' : n <= 2029 ? 'Double height' : n <= 2049 ? 'Round' : n <= 2059 ? 'Angled' : 'Misc';
+  if (c === 'Caves') return (n <= 3004 || n === 3009 || n === 3010) ? 'Base' : n <= 3008 ? 'Slopes' : n <= 3019 ? 'Corners' : 'Misc';
+  if (c === 'Riverbed') return n <= 4019 ? 'Ledges' : n <= 4039 ? 'Corners & jogs' : n <= 4059 ? 'Stones' : 'Misc';
+  if (c === FLUIDTAB) return n <= 4109 ? 'Edges' : n <= 4119 ? 'Slabs' : n <= 4129 ? 'Corners' : n <= 4139 ? 'Angled' : 'Misc';
+  return 'Misc';
+}
+const GROUP_ORDER = { Interiors:['Base', 'Walls', 'Corners', 'Corridors', 'Doors', 'Diagonal', 'Misc'], Castles:['Base', 'Half height', 'Double height', 'Round', 'Angled', 'Misc'], Caves:['Base', 'Slopes', 'Corners', 'Misc'],
+  Riverbed:['Ledges', 'Corners & jogs', 'Stones', 'Misc'], [FLUIDTAB]:['Edges', 'Slabs', 'Corners', 'Angled', 'Misc'] };
+
+/* ---------- state ---------- */
+let W = 12, L = 8, level = 0, rot = 0, view = false, erase = false;
+let boards = [{ x:0, z:0, w:12, l:8 }];   // board plates in squares; tiles sit on their union
+let selBoard = 0, arrange = false, flashBoard = false, flashT = 0;
+const PRESETS = { '6x8':[6,8], '8x12':[8,12], '12x16':[12,16] };
+const onBoard = (bd, x, z) => x >= bd.x && x < bd.x + bd.w && z >= bd.z && z < bd.z + bd.l;
+const inBoard = (x, z) => boards.some(bd => onBoard(bd, x, z));
+function bounds(){
+  let x0 = Infinity, z0 = Infinity, x1 = -Infinity, z1 = -Infinity;
+  for (const b of boards){ x0 = Math.min(x0, b.x); z0 = Math.min(z0, b.z); x1 = Math.max(x1, b.x + b.w); z1 = Math.max(z1, b.z + b.l); }
+  return { x0, z0, x1, z1, w:x1 - x0, l:z1 - z0, cx:(x0 + x1) / 2 * P, cz:(z0 + z1) / 2 * P };
+}
+// boards may not overlap, and every board must clip edge to edge onto the rest (sharing at least one square of edge)
+function overlap(a, b){ return a.x < b.x + b.w && b.x < a.x + a.w && a.z < b.z + b.l && b.z < a.z + a.l; }
+function touch(a, b){
+  const zs = Math.min(a.z + a.l, b.z + b.l) - Math.max(a.z, b.z), xs = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
+  return ((a.x + a.w === b.x || b.x + b.w === a.x) && zs >= 1) || ((a.z + a.l === b.z || b.z + b.l === a.z) && xs >= 1);
+}
+function layoutOk(list){
+  for (let i = 0; i < list.length; i++) for (let j = i + 1; j < list.length; j++) if (overlap(list[i], list[j])) return 'Boards can’t overlap.';
+  if (list.length > 1){
+    const seen = new Set([0]), q = [0];
+    while (q.length){ const i = q.pop(); list.forEach((b, j) => { if (!seen.has(j) && touch(list[i], b)){ seen.add(j); q.push(j); } }); }
+    if (seen.size < list.length) return 'Every board has to clip onto another board’s edge.';
+  }
+  return '';
+}
+let sel = null;               // selected model
+let blocks = [];              // {id, code, c, r, rot, level}
+let nextId = 1;
+const undo = [];
+const occ = new Map();        // "l,c,r" -> id
+const occF = new Map();       // lava has its own layer: it may tuck under a ledge's shelf in the ledge's own squares (14 Nov 2026)
+const key = (l,c,r) => `${l},${c},${r}`;
+
+/* ---------- three setup ---------- */
+const stage = $('stage'), canvas = $('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias:true });
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(38, 1, 1, 6000);
+const controls = new OrbitControls(camera, canvas);
+controls.enableDamping = true; controls.screenSpacePanning = false; controls.maxPolarAngle = Math.PI * 0.47; controls.minDistance = 60; controls.maxDistance = 1800;
+controls.zoomSpeed = 0.6;
+scene.add(new THREE.HemisphereLight(0xe6e2ff, 0x3a3328, 1.15));
+const sun = new THREE.DirectionalLight(0xfff1dc, 2.1);
+sun.castShadow = true; sun.shadow.mapSize.set(2048, 2048); sun.shadow.bias = -0.0008;
+scene.add(sun); scene.add(sun.target);
+
+const boardGroup = new THREE.Group(); scene.add(boardGroup);
+const boardMat = new THREE.MeshStandardMaterial({ roughness:0.95 });
+const holeMat = new THREE.MeshBasicMaterial();
+const gridMat = new THREE.LineBasicMaterial({ transparent:true, opacity:0.35 });
+const tileMat = new THREE.MeshStandardMaterial({ color:0x8a97d8, flatShading:true, roughness:0.6 });
+const lowerMat = new THREE.MeshStandardMaterial({ color:0x6c78b8, flatShading:true, roughness:0.7 });
+// fluid pieces (lava) keep their own colour whatever filament colour is picked for the rock
+const fluidMat = new THREE.MeshStandardMaterial({ color:0xff6a13, emissive:0xb33a00, emissiveIntensity:0.55, roughness:0.45 });
+const fluidLower = new THREE.MeshStandardMaterial({ color:0xb8500f, emissive:0x5a1d00, emissiveIntensity:0.4, roughness:0.55 });
+let fluidMode = store.get('tf-fluid') === 'water' ? 'water' : 'lava';
+const FLUIDS = { lava:{ c:0xff6a13, e:0xb33a00, ei:0.55, r:0.45, lc:0xb8500f, le:0x5a1d00, lei:0.4 }, water:{ c:0x2f86d8, e:0x0b3a70, ei:0.3, r:0.18, lc:0x1d5c9e, le:0x06213f, lei:0.2 } };
+function setFluidMats(){ const f = FLUIDS[fluidMode];
+  fluidMat.color.setHex(f.c); fluidMat.emissive.setHex(f.e); fluidMat.emissiveIntensity = f.ei; fluidMat.roughness = f.r;
+  fluidLower.color.setHex(f.lc); fluidLower.emissive.setHex(f.le); fluidLower.emissiveIntensity = f.lei; }
+setFluidMats();
+// names on screen: land pieces drop the 'Lava' prefix (they're the Riverbed set); fluid pieces say Lava or Water to match the toggle
+const nm = m => !m ? '' : (m.kind === 'fluid' || m.kind === 'insert') ? (fluidMode === 'water' ? m.name.replace(/^Lava Fall/, 'Waterfall').replace(/^Lava/, 'Water') : m.name)
+  : /^Lava Fall$/.test(m.name) ? 'Fall Cliff' : m.name.replace(/^Lava /, '');
+const isFluid = code => !!(BY[code] && (BY[code].kind === 'fluid' || BY[code].kind === 'insert'));
+// tiles built on the rounded v3 standard carry smooth normals, so they get smooth-shaded materials
+const tileSmooth = new THREE.MeshStandardMaterial({ color:0x8a97d8, roughness:0.6 });
+const lowerSmooth = new THREE.MeshStandardMaterial({ color:0x6c78b8, roughness:0.7 });
+const matOf = (code, lower) => isFluid(code) ? (lower ? fluidLower : fluidMat) : (BY[code] && BY[code].smooth) ? (lower ? lowerSmooth : tileSmooth) : (lower ? lowerMat : tileMat);
+const ghostMat = new THREE.MeshStandardMaterial({ color:0x4ade80, emissive:0x4ade80, emissiveIntensity:0.5, transparent:true, opacity:0.55, flatShading:true, depthWrite:false });
+const padMat = new THREE.MeshBasicMaterial({ color:0x4ade80, transparent:true, opacity:0.35, depthWrite:false, side:THREE.DoubleSide });
+const silMat = new THREE.MeshBasicMaterial({ transparent:true, opacity:0.10, depthWrite:false, side:THREE.DoubleSide });
+const availMat = new THREE.MeshBasicMaterial({ transparent:true, opacity:0.22, depthWrite:false, side:THREE.DoubleSide });
+const pickMat = new THREE.MeshStandardMaterial({ color:0x3BD9B2, emissive:0x3BD9B2, emissiveIntensity:0.35, flatShading:true, roughness:0.6 });
+const hiMat = new THREE.MeshStandardMaterial({ color:0xf87171, emissive:0xf87171, emissiveIntensity:0.4, flatShading:true, transparent:true, opacity:0.85 });
+
+function applyTheme(){
+  scene.background = new THREE.Color(css('--scene-bg'));
+  boardMat.color.set(css('--board')); holeMat.color.set(css('--hole'));
+  gridMat.color.set(css('--board-line')); silMat.color.set(css('--level-tint')); availMat.color.set(css('--level-tint'));
+}
+applyTheme();
+matchMedia('(prefers-color-scheme: light)').addEventListener('change', applyTheme);
+new MutationObserver(applyTheme).observe(document.documentElement, { attributes:true, attributeFilter:['data-theme'] });
+
+const plane = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({ visible:false }));
+plane.rotation.x = -Math.PI/2; scene.add(plane);
+const quad = new THREE.PlaneGeometry(P - 1.5, P - 1.5); quad.rotateX(-Math.PI/2);
+let silMesh = null, availMesh = null;
+
+function buildBoard(){
+  boardGroup.clear();
+  const bb = bounds(); W = bb.w; L = bb.l;
+  boards.forEach((bd, n) => {
+    // each plate is drawn a hair short so the joins between boards read as seams
+    const slab = new THREE.Mesh(new THREE.BoxGeometry(bd.w*P + (boards.length > 1 ? -0.8 : 12), 6, bd.l*P + (boards.length > 1 ? -0.8 : 12)), boardMat);
+    slab.position.set((bd.x + bd.w/2)*P, -3, (bd.z + bd.l/2)*P); slab.receiveShadow = true; boardGroup.add(slab);
+    const holes = new THREE.InstancedMesh(new THREE.CircleGeometry(3, 18), holeMat, (bd.w+1)*(bd.l+1));
+    const m = new THREE.Matrix4(), r = new THREE.Matrix4().makeRotationX(-Math.PI/2); let i = 0;
+    for (let x=0;x<=bd.w;x++) for (let z=0;z<=bd.l;z++){ m.makeTranslation((bd.x+x)*P, 0.05, (bd.z+z)*P).multiply(r); holes.setMatrixAt(i++, m); }
+    boardGroup.add(holes);
+    const pts = [], X0 = bd.x*P, Z0 = bd.z*P, X1 = (bd.x+bd.w)*P, Z1 = (bd.z+bd.l)*P;
+    for (let x=0;x<=bd.w;x++) pts.push((bd.x+x)*P,0.1,Z0, (bd.x+x)*P,0.1,Z1);
+    for (let z=0;z<=bd.l;z++) pts.push(X0,0.1,(bd.z+z)*P, X1,0.1,(bd.z+z)*P);
+    const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pts,3));
+    boardGroup.add(new THREE.LineSegments(g, gridMat));
+    if ((arrange || flashBoard) && n === selBoard){
+      const o = new THREE.BufferGeometry().setFromPoints([[X0,Z0],[X1,Z0],[X1,Z1],[X0,Z1],[X0,Z0]].map(([x,z]) => new THREE.Vector3(x, 0.6, z)));
+      boardGroup.add(new THREE.Line(o, new THREE.LineBasicMaterial({ color:0x3BD9B2 })));
+      const f = new THREE.Mesh(new THREE.PlaneGeometry(bd.w*P, bd.l*P), new THREE.MeshBasicMaterial({ color:0x3BD9B2, transparent:true, opacity:0.12, depthWrite:false }));
+      f.rotation.x = -Math.PI/2; f.position.set((bd.x + bd.w/2)*P, 0.3, (bd.z + bd.l/2)*P); boardGroup.add(f);
+    }
+  });
+  plane.scale.set(bb.w*P*4 + 400, bb.l*P*4 + 400, 1); plane.position.set(bb.cx, level*LV, bb.cz);
+  const s = Math.max(bb.w, bb.l) * P;
+  sun.position.set(bb.cx - s*0.6, s*1.3, bb.cz + s*0.5); sun.target.position.set(bb.cx, 0, bb.cz);
+  Object.assign(sun.shadow.camera, { left:-s, right:s, top:s, bottom:-s, near:1, far:s*4 }); sun.shadow.camera.updateProjectionMatrix();
+  if (silMesh){ scene.remove(silMesh); scene.remove(availMesh); }
+  silMesh = new THREE.InstancedMesh(quad, silMat, bb.w*bb.l); availMesh = new THREE.InstancedMesh(quad, availMat, bb.w*bb.l);
+  silMesh.frustumCulled = availMesh.frustumCulled = false;
+  scene.add(silMesh); scene.add(availMesh);
+  boardUI();
+}
+const boardFocus = () => arrange || !!placing;
+function boardUI(){
+  if (!$('movebar')) return;
+  $('mb-which').textContent = boards.length > 1 ? `Board ${selBoard + 1} of ${boards.length} · ${boards[selBoard].w} × ${boards[selBoard].l}` : `Your board · ${boards[0].w} × ${boards[0].l}`;
+  document.querySelectorAll('[data-mv]').forEach(b => b.disabled = boards.length < 2);
+}
+function frame(){
+  const bb = bounds(), s = Math.max(bb.w, bb.l) * P;
+  controls.target.set(bb.cx, 0, bb.cz);
+  camera.position.set(bb.cx + s*0.35, s*0.95, bb.cz + s*0.95);
+  syncZoom();
+}
+/* zoom: smooth steps on the wheel, plus a slider and +/- buttons that stay in sync with pinch and orbit */
+const zr = () => { const bb = bounds(); return [controls.minDistance, Math.max(400, Math.max(bb.w, bb.l) * P * 3.2)]; };
+function zoomTo(d){
+  const [lo, hi] = zr(); d = Math.min(hi, Math.max(lo, d));
+  const dir = camera.position.clone().sub(controls.target).normalize();
+  camera.position.copy(controls.target).addScaledVector(dir, d);
+  syncZoom();
+}
+const dist = () => camera.position.distanceTo(controls.target);
+function syncZoom(){
+  const [lo, hi] = zr(); controls.maxDistance = hi;
+  // slider: 0 = furthest out, 100 = closest in, on a log scale so every notch feels the same
+  $('z-range').value = Math.round(100 * (1 - Math.log(dist() / lo) / Math.log(hi / lo)));
+}
+const fromSlider = v => { const [lo, hi] = zr(); return lo * Math.pow(hi / lo, 1 - v / 100); };
+stage.addEventListener('wheel', e => {
+  if (e.target !== canvas) return;
+  e.preventDefault(); e.stopPropagation();
+  const dy = e.deltaMode === 1 ? e.deltaY * 16 : e.deltaY;          // lines -> pixels
+  zoomTo(dist() * Math.exp(Math.max(-60, Math.min(60, dy)) * 0.0022)); // about 12% per notch, smooth on trackpads
+}, { capture:true, passive:false });
+$('z-range').addEventListener('input', e => zoomTo(fromSlider(+e.target.value)));
+$('z-in').onclick = () => zoomTo(dist() * 0.8);
+$('z-out').onclick = () => zoomTo(dist() * 1.25);
+$('z-home').onclick = () => { frame(); toast('View reset', 'info'); };   // back to the whole map, straight on (14 Nov 2026)
+controls.addEventListener('change', () => { if (document.activeElement !== $('z-range')) syncZoom(); });
+function resize(){ const b = stage.getBoundingClientRect(); renderer.setSize(b.width, b.height, false); camera.aspect = b.width / b.height; camera.updateProjectionMatrix(); }
+new ResizeObserver(resize).observe(stage);
+// the tool rail always fits the stage: on a wide but short window it shrinks as a whole, so the bottom tools never drop out of view (14 Nov 2026)
+function fitRail(){
+  const r = $('rail'); r.style.transform = ''; r.classList.remove('two');
+  if (!matchMedia('(min-width:821px)').matches) return;          // phones: the rail is a scrolling row along the top
+  const room = stage.clientHeight - 20;
+  if (r.offsetHeight > room) r.classList.add('two');             // first: the two groups side by side
+  const k = Math.min(1, room / r.offsetHeight);                  // then, only if that still doesn't fit: shrink it
+  if (k < 0.999) r.style.transform = `scale(${Math.max(0.4, k)})`;
+}
+new ResizeObserver(fitRail).observe(stage);
+new ResizeObserver(fitRail).observe($('rail'));
+
+/* ---------- models ---------- */
+let MODELS = [], BY = {};
+const geos = {};
+async function decode(b64){
+  const bin = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+  const ds = new Blob([bin]).stream().pipeThrough(new DecompressionStream('gzip'));
+  return new Uint8Array(await new Response(ds).arrayBuffer());
+}
+// geometry centred on its footprint, body base at y=0 (pegs dip 3.25 mm below)
+function makeGeo(m, bytes){
+  const q = new Uint16Array(bytes.buffer, bytes.byteOffset, m.nv*3);
+  const idx = new Uint16Array(bytes.buffer, bytes.byteOffset + m.nv*6, m.nf*3);
+  const cx = m.org[0] + m.cells[0]*PITCH/2, cy = m.org[1] + m.cells[1]*PITCH/2;
+  if (m.smooth){                                   // shared vertices -> smooth normals, then unshared again for the footprint code
+    const p = new Float32Array(m.nv*3);
+    for (let v=0; v<m.nv; v++){ p[v*3] = q[v*3]/100 - cx; p[v*3+1] = q[v*3+2]/100 - 3.25; p[v*3+2] = -(q[v*3+1]/100 - cy); }
+    const gi = new THREE.BufferGeometry(); gi.setAttribute('position', new THREE.BufferAttribute(p,3)); gi.setIndex(new THREE.BufferAttribute(new Uint32Array(idx),1));
+    gi.computeVertexNormals(); const g = gi.toNonIndexed(); g.computeBoundingSphere(); return g;
+  }
+  const pos = new Float32Array(m.nf*9);
+  for (let f=0; f<m.nf; f++) for (let k=0;k<3;k++){
+    const v = idx[f*3+k];
+    pos[f*9+k*3] = q[v*3]/100 - cx; pos[f*9+k*3+1] = q[v*3+2]/100 - 3.25; pos[f*9+k*3+2] = -(q[v*3+1]/100 - cy);
+  }
+  const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos,3)); g.computeVertexNormals();
+  g.computeBoundingSphere();
+  return g;
+}
+const foot = (m, r) => (r % 2) ? [m.cells[1], m.cells[0]] : [m.cells[0], m.cells[1]];
+
+/* thumbnails */
+/* thumbnails: shot from the tile's most textured side, in the chosen colour */
+const BAMBU = [
+  ['Jade White','#FFFFFF'],['Beige','#F7E6DE'],['Light Gray','#D1D3D5'],['Silver','#A6A9AA'],['Gray','#8E9089'],['Dark Gray','#545454'],['Black','#000000'],
+  ['Blue Grey','#5B6579'],['Cyan','#0086D6'],['Cobalt Blue','#0056B8'],['Blue','#0A2989'],['Turquoise','#00B1B7'],['Purple','#5E43B7'],['Indigo Purple','#482960'],
+  ['Bambu Green','#00AE42'],['Mistletoe Green','#3F8E43'],['Bright Green','#BECF00'],['Bronze','#847D48'],['Gold','#E4BD68'],['Sunflower Yellow','#FEC600'],['Yellow','#F4EE2A'],
+  ['Pumpkin Orange','#FF9016'],['Orange','#FF6A13'],['Red','#C12E1F'],['Maroon Red','#9D2235'],['Brown','#9D432C'],['Cocoa Brown','#6F5034'],['Pink','#F55A74'],['Hot Pink','#F5547C'],['Magenta','#EC008C']
+];
+let colour = ['Blue Grey','#5B6579'];
+function faceDir(g){
+  // sum the area of irregular (non axis-aligned, non-top) faces pointing each way; the rock face wins
+  const p = g.getAttribute('position').array, dirs = [[1,0],[-1,0],[0,1],[0,-1]], score = [0,0,0,0];
+  const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), n = new THREE.Vector3();
+  for (let i=0;i<p.length;i+=9){
+    a.set(p[i],p[i+1],p[i+2]); b.set(p[i+3],p[i+4],p[i+5]); c.set(p[i+6],p[i+7],p[i+8]);
+    n.subVectors(b,a).cross(c.clone().sub(a)); const area = n.length()/2; if (area < 1e-6) continue; n.normalize();
+    if (Math.abs(n.y) > 0.7) continue;
+    if (Math.max(Math.abs(n.x), Math.abs(n.z)) > 0.97) continue;
+    dirs.forEach(([dx,dz],k) => { const d = n.x*dx + n.z*dz; if (d > 0.25) score[k] += area*d; });
+  }
+  return dirs[score.indexOf(Math.max(...score))];
+}
+let tr = null, ts = null, tcam = null, tlight = null;
+const tc = document.createElement('canvas'); tc.width = 240; tc.height = 180;
+async function thumbs(only){
+  if (!tr){
+    tr = new THREE.WebGLRenderer({ canvas:tc, antialias:true, alpha:true, preserveDrawingBuffer:true });
+    tr.outputColorSpace = THREE.SRGBColorSpace;
+    ts = new THREE.Scene(); ts.add(new THREE.HemisphereLight(0xe6e2ff, 0x3a3328, 1.2));
+    tlight = new THREE.DirectionalLight(0xffffff, 2.4); ts.add(tlight); ts.add(tlight.target);
+    tcam = new THREE.PerspectiveCamera(30, 4/3, 1, 1000);
+  }
+  for (const m of MODELS){
+    if (only && !only(m)) continue;
+    if (!m.face) m.face = faceDir(geos[m.code]);
+    const mesh = new THREE.Mesh(geos[m.code], matOf(m.code)); ts.add(mesh);
+    const r = Math.max(m.size[0], m.size[1], 30), [fx,fz] = m.face;
+    // stand in front of the textured face, a little to one side and above
+    tcam.position.set(fx*r*1.7 - fz*r*0.7, r*1.05, fz*r*1.7 + fx*r*0.7); tcam.lookAt(0, 11, 0);
+    tlight.position.set(fx*120 - fz*40, 140, fz*120 + fx*40);
+    tr.render(ts, tcam); m.thumb = tc.toDataURL('image/png'); ts.remove(mesh);
+  }
+}
+
+/* ---------- physical space ---------- */
+// a tile's footprint on the board as it really is: the outline of its body (pegs below the base ignored), on a 2.5 mm grid.
+// Cliff faces that jut past their squares are included, so two tiles can't be pushed into each other.
+const G = 2.5, SHADOW = {}, wsCache = new Map();
+function shadowOf(pos){
+  const cells = new Set();
+  for (let i = 0; i < pos.length; i += 9){
+    const ax = pos[i], ay = pos[i+1], az = pos[i+2], bx = pos[i+3], by = pos[i+4], bz = pos[i+5], cx = pos[i+6], cy = pos[i+7], cz = pos[i+8];
+    if (Math.max(ay, by, cy) < 0.5) continue;
+    const d = (bz - cz)*(ax - cx) + (cx - bx)*(az - cz); if (Math.abs(d) < 1e-6) continue;
+    const i0 = Math.floor(Math.min(ax, bx, cx)/G), i1 = Math.ceil(Math.max(ax, bx, cx)/G), j0 = Math.floor(Math.min(az, bz, cz)/G), j1 = Math.ceil(Math.max(az, bz, cz)/G);
+    for (let x = i0; x < i1; x++) for (let z = j0; z < j1; z++){
+      const px = (x + 0.5)*G, pz = (z + 0.5)*G;
+      const l1 = ((bz - cz)*(px - cx) + (cx - bx)*(pz - cz))/d, l2 = ((cz - az)*(px - cx) + (ax - cx)*(pz - cz))/d;
+      if (l1 >= -1e-6 && l2 >= -1e-6 && 1 - l1 - l2 >= -1e-6) cells.add(x + ',' + z);
+    }
+  }
+  return [...cells].map(k => k.split(',').map(Number));
+}
+// lava under a ledge: the real test is solid against solid. For every 2.5 mm column we keep the heights where the body is
+// solid (a ray straight down through the mesh), so a lava piece can only go where the ledge is hollow above it (14 Nov 2026)
+const COLS = {}, wcCache = new Map();
+function columnsOf(pos){
+  const hits = new Map();
+  for (let i = 0; i < pos.length; i += 9){
+    const ax = pos[i], ay = pos[i+1], az = pos[i+2], bx = pos[i+3], by = pos[i+4], bz = pos[i+5], cx = pos[i+6], cy = pos[i+7], cz = pos[i+8];
+    const d = (bz - cz)*(ax - cx) + (cx - bx)*(az - cz); if (Math.abs(d) < 1e-6) continue;
+    const ny = (bz - az)*(cx - ax) - (bx - ax)*(cz - az);          // y of the face normal (sign only)
+    const i0 = Math.floor(Math.min(ax, bx, cx)/G), i1 = Math.ceil(Math.max(ax, bx, cx)/G), j0 = Math.floor(Math.min(az, bz, cz)/G), j1 = Math.ceil(Math.max(az, bz, cz)/G);
+    for (let x = i0; x < i1; x++) for (let z = j0; z < j1; z++){
+      const px = (x + 0.5)*G, pz = (z + 0.5)*G;
+      const l1 = ((bz - cz)*(px - cx) + (cx - bx)*(pz - cz))/d, l2 = ((cz - az)*(px - cx) + (ax - cx)*(pz - cz))/d, l3 = 1 - l1 - l2;
+      if (l1 < -1e-6 || l2 < -1e-6 || l3 < -1e-6) continue;
+      const k = x + ',' + z; let a = hits.get(k); if (!a) hits.set(k, a = []);
+      a.push([l1*ay + l2*by + l3*cy, ny > 0 ? 1 : -1]);
+    }
+  }
+  // which normal sign means "leaving the solid going up": the topmost hit in a column always leaves it
+  let vote = 0; for (const a of hits.values()){ let t = a[0]; for (const h of a) if (h[0] > t[0]) t = h; vote += t[1]; }
+  const up = vote >= 0 ? 1 : -1, out = [];
+  for (const [k, a] of hits){
+    a.sort((p, q) => p[0] - q[0]);
+    const iv = []; let w = 0, y0 = 0, last = null;
+    for (const [y, s] of a){
+      if (last && Math.abs(y - last[0]) < 0.02 && s === last[1]) continue;   // the same crossing counted on two triangles
+      last = [y, s];
+      if (s !== up){ if (w++ === 0) y0 = y; } else if (w > 0 && --w === 0) iv.push(y0, y);
+    }
+    if (iv.length){ const [i, j] = k.split(',').map(Number); out.push([i, j, iv]); }
+  }
+  return out;
+}
+function worldCols(code, c, r, ro){
+  const k = `${code}|${c}|${r}|${ro}`; if (wcCache.has(k)) return wcCache.get(k);
+  const cs = COLS[code]; if (!cs) return null;
+  const [w, h] = foot(BY[code], ro), ox = Math.round((c + w/2)*P/G), oz = Math.round((r + h/2)*P/G), out = new Map();
+  for (let [i, j, iv] of cs){ for (let n = 0; n < ro; n++) [i, j] = [-j - 1, i]; out.set((i + ox) + ',' + (j + oz), iv); }
+  if (wcCache.size > 4000) wcCache.clear();
+  wcCache.set(k, out); return out;
+}
+// lava and a ledge collide where both are solid at the same height, above the board (pegs and holes left out), by more than print tolerance
+function solidClash(A, B){
+  let n = 0;
+  for (const [k, a] of A){ const b = B.get(k); if (!b) continue;
+    hit: for (let i = 0; i < a.length; i += 2) for (let j = 0; j < b.length; j += 2){
+      const lo = Math.max(a[i], b[j], 0.3), hi = Math.min(a[i+1], b[j+1]);
+      if (hi - lo > 0.3){ if (++n >= 2) return true; break hit; } } }
+  return false;
+}
+function worldShadow(code, c, r, ro){
+  const k = `${code}|${c}|${r}|${ro}`; if (wsCache.has(k)) return wsCache.get(k);
+  const sh = SHADOW[code]; if (!sh) return null;
+  const [w, h] = foot(BY[code], ro), ox = Math.round((c + w/2)*P/G), oz = Math.round((r + h/2)*P/G), out = new Set();
+  for (let [i, j] of sh){ for (let n = 0; n < ro; n++) [i, j] = [-j - 1, i]; out.add((i + ox) + ',' + (j + oz)); }
+  if (wsCache.size > 4000) wsCache.clear();
+  wsCache.set(k, out); return out;
+}
+// heights are counted in half levels: a half-height tile fills 1, a full block 2, stacked castle pieces 4.
+// Each working level spans two halves, so a half tile can sit on another half tile without going up a level.
+const tallOf = m => Math.max(1, Math.round(((m.size ? m.size[2] : 29.51) - 3.25) / (LV/2)));
+const hb = b => Math.round(b.level*2);                      // a placed tile's base, in half levels
+// the surface a tile would rest on in square (x,z) while working on level L: the top of the highest tile
+// that starts below 2L+2, in half levels (0 = the board)
+// a tile can be selected, moved, turned or removed on working level L only if it reaches up into that level:
+// two half tiles on level 1 are locked while you work on level 2, but a full block sitting on a half tile pokes into level 2, so it isn't
+const onLevel = (b, L) => hb(b) < 2*L + 2 && hb(b) + tallOf(BY[b.code]) > 2*L;
+function surf(x, z, L){ for (let h = 2*L + 1; h >= 0; h--) if (occ.has(key(h,x,z))) return h + 1; return 0; }
+// for lava: the same, but a ledge (shelf) above doesn't count - the lava goes in underneath it
+function surfUnder(x, z, L){ for (let h = 2*L + 1; h >= 0; h--){ const id = occ.get(key(h,x,z)); if (id && BY[blocks.find(b => b.id === id).code].kind !== 'shelf') return h + 1; } return 0; }
+function clashes(m, c, r, ro, lv){
+  const A = worldShadow(m.code, c, r, ro); if (!A) return false;
+  for (const b of blocks){
+    const t = tallOf(m), bt = tallOf(BY[b.code]);
+    if (hb(b) + bt <= lv || lv + t <= hb(b) || Math.abs(b.c - c) > 9 || Math.abs(b.r - r) > 9) continue;
+    const ka = m.kind, kb = BY[b.code].kind;
+    if ((ka === 'fluid' && kb === 'shelf') || (ka === 'shelf' && kb === 'fluid')){   // lava tucks under the shelf, but only where the ledge is hollow
+      const CA = worldCols(m.code, c, r, ro), CB = worldCols(b.code, b.c, b.r, b.rot);
+      if (CA && CB && solidClash(CA, CB)) return 'ledge';
+      continue;
+    }
+    const B = worldShadow(b.code, b.c, b.r, b.rot); if (!B) continue;
+    // two grid cells (a few mm²) or more is a real clash; between two river pieces (rock that reaches past its squares) one is enough,
+    // so the overhangs of an L of stones are caught (14 Nov 2026)
+    const lim = (ka === 'shelf' && kb === 'shelf') ? 1 : 2;
+    let n = 0; for (const k of A) if (B.has(k) && ++n >= lim) return true;
+  }
+  return false;
+}
+
+/* ---------- placement rules ---------- */
+function cellsOf(m, c, r, ro){ const [w,h] = foot(m, ro); const out = []; for (let i=0;i<w;i++) for (let j=0;j<h;j++) out.push([c+i, r+j]); return out; }
+// lv is the working level; the tile drops onto whatever is under it: the board, a full level,
+// or the top of a half-height tile (on this level or the one below). res.lvl is where it ends up.
+function check(m, c, r, ro, lv){
+  const cs = cellsOf(m, c, r, ro), L = Math.floor(lv), lvl = L;
+  if (cs.some(([x,z]) => !inBoard(x, z))) return { ok:false, why:'Off the edge of the board.', lvl };
+  const fl = m.kind === 'fluid' || m.kind === 'insert';
+  const t = tallOf(m), tops = cs.map(([x,z]) => fl ? surfUnder(x, z, L) : surf(x, z, L)), base = Math.max(...tops);
+  if (base >= 2*L + 2) return { ok:false, why:'Something is already there.', lvl };
+  if (L > 0 && base < 2*L - 1) return { ok:false, why:`Needs support: every square must sit on a level ${L} tile.`, lvl };
+  if (tops.some(v => v !== base)) return { ok:false, why:'Uneven: its squares would sit at different heights.', lvl };
+  const at = base/2;
+  if (base + t > 2*MAXL) return { ok:false, why:`Too tall here: it fills ${t/2} level${t > 2 ? 's' : ''}.`, lvl:at };
+  if (fl){   // lava: not into other lava, and only under a ledge's shelf, never into anything else
+    for (let h = base; h < base + t; h++) for (const [x,z] of cs){
+      if (occF.has(key(h,x,z))) return { ok:false, why:'Something is already there.', lvl:at };
+      const id = occ.get(key(h,x,z)); if (id && BY[blocks.find(b => b.id === id).code].kind !== 'shelf') return { ok:false, why:'Something is already there.', lvl:at }; }
+  } else {
+    for (const [x,z] of cs) if ((base > 0 && occF.has(key(base-1,x,z))) || (m.kind !== 'shelf' && occF.has(key(base,x,z))))
+      return { ok:false, why:'Tiles can’t stand on lava.', lvl:at };
+    for (let h = base; h < base + t; h++) if (cs.some(([x,z]) => occ.has(key(h,x,z)))) return { ok:false, why:'Something is already there.', lvl:at };
+  }
+  const cl = clashes(m, c, r, ro, base);
+  if (cl) return { ok:false, why: cl === 'ledge' ? (m.kind === 'fluid' ? 'That lava piece doesn’t fit under this ledge: it runs into the rock.' : 'That ledge doesn’t fit over this lava: the rock runs into it.') : 'It overlaps another tile.', lvl:at };
+  return { ok:true, why:base % 2 ? 'Fits, on top of the half-height tile. ' : 'Fits. ', lvl:at };
+}
+const meshes = new Map(); // id -> mesh
+function addBlock(b, record=true){
+  const m = BY[b.code];
+  const mesh = new THREE.Mesh(geos[b.code], matOf(b.code)); mesh.userData.code = b.code;
+  const [w,h] = foot(m, b.rot);
+  mesh.position.set((b.c + w/2)*P, b.level*LV, (b.r + h/2)*P);
+  mesh.rotation.y = -b.rot * Math.PI/2;
+  mesh.castShadow = mesh.receiveShadow = true; mesh.userData.id = b.id;
+  if (m.insert && geos[m.insert]){ const ins = new THREE.Mesh(geos[m.insert], fluidMat); ins.castShadow = true; mesh.add(ins); }   // the fall's fluid insert
+  scene.add(mesh); meshes.set(b.id, mesh);
+  blocks.push(b);
+  const om = isFluid(b.code) ? occF : occ;
+  for (let l = hb(b); l < hb(b) + tallOf(m); l++) cellsOf(m, b.c, b.r, b.rot).forEach(([x,z]) => om.set(key(l,x,z), b.id));
+  if (record){ undo.push({ op:'add', b }); }
+  changed();
+}
+function removeBlock(id, record=true){
+  const b = blocks.find(x => x.id === id); if (!b) return;
+  scene.remove(meshes.get(id)); meshes.delete(id);
+  blocks = blocks.filter(x => x.id !== id);
+  const om = isFluid(b.code) ? occF : occ;
+  for (let l = hb(b); l < hb(b) + tallOf(BY[b.code]); l++) cellsOf(BY[b.code], b.c, b.r, b.rot).forEach(([x,z]) => om.delete(key(l,x,z)));
+  if (record) undo.push({ op:'remove', b });
+  if (picked === id) picked = null;
+  changed();
+}
+function supporting(b){
+  return cellsOf(BY[b.code], b.c, b.r, b.rot).some(([x,z]) => occ.has(key(hb(b) + tallOf(BY[b.code]), x, z)));
+}
+
+/* ---------- overlays ---------- */
+const ghost = new THREE.Mesh(new THREE.BufferGeometry(), ghostMat); ghost.visible = false; scene.add(ghost);
+const pads = new THREE.InstancedMesh(quad, padMat, 64); pads.frustumCulled = false; pads.visible = false; scene.add(pads);
+let ghostAt = null; // {c,r,ok}
+function showGhost(c, r){
+  if (!sel || view || erase){ hideGhost(); return; }
+  const [w,h] = foot(sel, rot);
+  const res = check(sel, c, r, rot, level);
+  ghost.geometry = geos[sel.code];
+  ghost.position.set((c + w/2)*P, res.lvl*LV, (r + h/2)*P); ghost.rotation.y = -rot*Math.PI/2; ghost.visible = true;
+  const col = new THREE.Color(css(res.ok ? '--ok' : '--bad'));
+  ghostMat.color.copy(col); ghostMat.emissive.copy(col); padMat.color.copy(col);
+  const cs = cellsOf(sel, c, r, rot); const m4 = new THREE.Matrix4();
+  pads.count = cs.length;
+  cs.forEach(([x,z],i) => { m4.makeTranslation(x*P + P/2, res.lvl*LV + 0.4, z*P + P/2); pads.setMatrixAt(i, m4); });
+  pads.instanceMatrix.needsUpdate = true; pads.visible = true;
+  ghostAt = { c, r, ok:res.ok };
+  hint(res.ok ? `${sel.code} ${nm(sel)} fits here.` : res.why, res.ok ? 'ok' : 'bad');
+  return res;
+}
+function hideGhost(){ ghost.visible = false; pads.visible = false; ghostAt = null; $('place-btn').hidden = true; }
+
+/* cursor: click an empty square to highlight it, then pick a tile below to put it there */
+const cursorMesh = new THREE.Group();
+{
+  const fill = new THREE.Mesh(quad, new THREE.MeshBasicMaterial({ color:0x3BD9B2, transparent:true, opacity:0.28, depthWrite:false, side:THREE.DoubleSide }));
+  const h = (P - 1.5) / 2, edge = new THREE.BufferGeometry().setFromPoints([[-h,-h],[h,-h],[h,h],[-h,h],[-h,-h]].map(([x,z]) => new THREE.Vector3(x, 0.05, z)));
+  cursorMesh.add(fill, new THREE.Line(edge, new THREE.LineBasicMaterial({ color:0x3BD9B2 })));
+  cursorMesh.visible = false; scene.add(cursorMesh);
+}
+let cursor = null;   // {c, r} on the working level
+let picked = null;   // id of the placed tile that is selected
+function setCursor(cell){
+  cursor = cell; cursorMesh.visible = !!cell;
+  if (cell) cursorMesh.position.set(cell.c*P + P/2, level*LV + 0.45, cell.r*P + P/2);
+  if (cell) pickBlock(null, true);
+  idleHint();
+}
+function pickBlock(id, quiet){
+  if (picked !== null && meshes.has(picked)) meshes.get(picked).material = matOf(meshes.get(picked).userData.code);
+  const was = picked; picked = id;
+  if (id !== was) computeFits();
+  if (id !== null){ meshes.get(id).material = pickMat; if (cursor) { cursor = null; cursorMesh.visible = false; } }
+  if (!quiet) idleHint();
+}
+/* which tiles in the open tab could go beside the selected placed tile: some turn and spot, touching it (or tucked under it,
+   for lava under a ledge), that passes the same placement check as a click. Worked out a few tiles at a time so the page stays smooth. */
+let fitSet = null, fitJob = 0;
+// two riverbed pieces only count as going together if their rock lines up where they meet: along every shared square edge,
+// what's solid just inside one piece must match what's solid just inside the other (one 2.5 mm cell of slack in ten)
+// lava beside a ledge (or a ledge beside lava) only counts where the lava runs in under the rock's overhang
+function tucks(a, b){
+  const A = worldShadow(a.code, a.c, a.r, a.rot), B = worldShadow(b.code, b.c, b.r, b.rot); if (!A || !B) return true;
+  let n = 0; for (const k of A) if (B.has(k) && ++n >= 3) return true; return false;
+}
+function edgesMatch(a, b){
+  const A = worldShadow(a.code, a.c, a.r, a.rot), B = worldShadow(b.code, b.c, b.r, b.rot); if (!A || !B) return true;
+  const ca = new Set(cellsOf(BY[a.code], a.c, a.r, a.rot).map(([x, z]) => x + ',' + z)), K = P / G;
+  let segs = 0, bad = 0, cross = 0;
+  for (const [x, z] of cellsOf(BY[b.code], b.c, b.r, b.rot)) for (const [dx, dz] of [[1,0],[-1,0],[0,1],[0,-1]]){
+    if (!ca.has((x + dx) + ',' + (z + dz))) continue;
+    segs++; let miss = 0, solid = 0;
+    for (let k = 0; k < K; k++){
+      let ib, jb, ia, ja;
+      if (dx){ const X = dx > 0 ? (x + 1) * K : x * K; ib = dx > 0 ? X - 1 : X; ia = dx > 0 ? X : X - 1; jb = ja = z * K + k; }
+      else   { const Z = dz > 0 ? (z + 1) * K : z * K; jb = dz > 0 ? Z - 1 : Z; ja = dz > 0 ? Z : Z - 1; ib = ia = x * K + k; }
+      if (A.has(ia + ',' + ja)) solid++;
+      if (B.has(ib + ',' + jb) !== A.has(ia + ',' + ja)) miss++;
+    }
+    if (miss > 1) bad++;
+    // the rock just past both ends of this edge, on the selected piece's side: stones overhang their squares, so where two
+    // stones join, the joint is rock all the way across and the rock carries on beyond it
+    const out = (S, k) => dx ? S.has((dx > 0 ? (x + 1) * K : x * K - 1) + ',' + (z * K + k)) : S.has((x * K + k) + ',' + (dz > 0 ? (z + 1) * K : z * K - 1));
+    const outB = (k) => dx ? B.has((dx > 0 ? (x + 1) * K - 1 : x * K) + ',' + (z * K + k)) : B.has((x * K + k) + ',' + (dz > 0 ? (z + 1) * K - 1 : z * K));
+    if ((solid > 1 && solid < K - 1) || (solid >= K - 1 && out(A, -1) && out(A, K) && outB(-1) && outB(K))) cross++;   // part rock, part open river: a join along the bank
+  }
+  return segs > 0 && bad === 0 && cross > 0;     // joined along the bank, not just back to back
+}
+function computeFits(){
+  const job = ++fitJob, b = pickedBlock();
+  if (!b){ if (fitSet){ fitSet = null; renderPalette(true); } return; }
+  const pm = BY[b.code], [pw, ph] = foot(pm, b.rot), lv = Math.floor(b.level), near = new Set();
+  cellsOf(pm, b.c, b.r, b.rot).forEach(([x, z]) => [[0,0],[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx, dz]) => near.add((x + dx) + ',' + (z + dz))));
+  const list = MODELS.filter(m => catOf(m) === cat && !m.hidden), found = new Set(); let i = 0;
+  const step = () => {
+    if (job !== fitJob) return;
+    const t0 = performance.now();
+    while (i < list.length && performance.now() - t0 < 14){
+      const m = list[i++]; let ok = false;
+      for (let ro = 0; ro < 4 && !ok; ro++){
+        const [w, h] = foot(m, ro);
+        for (let c = b.c - w; c <= b.c + pw && !ok; c++) for (let r = b.r - h; r <= b.r + ph && !ok; r++){
+          if (!cellsOf(m, c, r, ro).some(([x, z]) => near.has(x + ',' + z))) continue;
+          if (!check(m, c, r, ro, lv).ok) continue;
+          if (pm.kind === 'shelf' && m.kind === 'shelf' && !edgesMatch(b, { code:m.code, c, r, rot:ro })) continue;
+          if ((pm.kind === 'shelf') !== (m.kind === 'shelf') && !tucks(b, { code:m.code, c, r, rot:ro })) continue;
+          ok = true;
+        }
+      }
+      if (ok) found.add(m.code);
+    }
+    if (i < list.length) setTimeout(step, 0);
+    else { fitSet = found; renderPalette(true); if (found.size) tip('fits'); }
+  };
+  setTimeout(step, 0);
+}
+function pickedBlock(){ return picked === null ? null : blocks.find(b => b.id === picked) || null; }
+// turn a placed tile 90 degrees where it stands
+function turnBlock(b){
+  if (supporting(b)){ toast('Remove the tile on top of it first'); return; }
+  const nb = { ...b, rot:(b.rot + 1) % 4 };
+  removeBlock(b.id, false);
+  const res = check(BY[nb.code], nb.c, nb.r, nb.rot, nb.level);
+  if (!res.ok){ setPending({ ...nb, from:b }, res.why); return; }
+  nb.level = res.lvl; addBlock(nb, false); undo.push({ op:'swap', before:b, after:nb }); changed(); pickBlock(nb.id); rot = nb.rot;
+}
+function deletePicked(){
+  const b = pickedBlock(); if (!b) return false;
+  if (supporting(b)){ toast('Remove the tile on top of it first'); return true; }
+  picked = null; removeBlock(b.id); toast(`Removed ${b.code}`); idleHint(); return true;
+}
+// a tile chosen from the bar goes straight onto the highlighted square
+function choose(m){
+  if (!m) { selectTile(null); return; }
+  if (stockStop(m)) return;
+  dropPending();
+  if (cursor && !view && !erase){
+    const res = check(m, cursor.c, cursor.r, rot, level);
+    if (!res.ok){ const at = cursor; selectTile(null, true); setPending({ code:m.code, c:at.c, r:at.r, rot, level }, res.why); return; }
+    const b = { id:nextId++, code:m.code, c:cursor.c, r:cursor.r, rot, level:res.lvl };
+    addBlock(b); setCursor(null); selectTile(null, true); pickBlock(b.id); tip('placed');
+    return;
+  }
+  selectTile(m);
+}
+
+function refreshLevels(){
+  // tiles above the working level are hidden while editing; lower levels are darker
+  for (const b of blocks){
+    const mesh = meshes.get(b.id);
+    mesh.visible = view || b.level < level + 1;
+    mesh.material = matOf(b.code, !view && !onLevel(b, level));
+  }
+  // silhouette of the level below + denser squares where a tile can go
+  const m4 = new THREE.Matrix4(); let s = 0, a = 0;
+  const y = level*LV + 0.25;
+  const bb = bounds();
+  for (let x=bb.x0;x<bb.x1;x++) for (let z=bb.z0;z<bb.z1;z++){
+    if (!inBoard(x, z)) continue;
+    const top = surf(x, z, level), base = level === 0 || top >= 2*level - 1;
+    if (!base) continue;
+    m4.makeTranslation(x*P + P/2, y, z*P + P/2);
+    if (level === 0) continue; // the board itself is the base of level 1: no tint
+    silMesh.setMatrixAt(s++, m4);
+    if (top < 2*level + 2) availMesh.setMatrixAt(a++, m4);
+  }
+  silMesh.count = s; availMesh.count = a;
+  silMesh.instanceMatrix.needsUpdate = availMesh.instanceMatrix.needsUpdate = true;
+  silMesh.visible = availMesh.visible = !view;
+  plane.position.y = level*LV;
+  if (picked !== null && meshes.has(picked) && !view) meshes.get(picked).material = pickMat;
+  document.querySelectorAll('[data-level]').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.level === level)));
+}
+
+/* ---------- UI: hint/toast ---------- */
+function syncRail(){
+  const B = arrange;
+  $('m-tiles').setAttribute('aria-selected', String(!B)); $('m-boards').setAttribute('aria-selected', String(B));
+  $('tools-h').textContent = B ? 'Boards' : 'Tiles';
+  $('g-tiles').classList.toggle('on', B || (!view && (erase || !!sel || picked !== null || !!cursor)));
+  $('t-addb').hidden = !B; $('t-colour').hidden = B;
+  $('t-addb').setAttribute('aria-pressed', String(!!placing));
+  $('t-rot').setAttribute('aria-label', B ? 'Rotate the selected board 90° (R)' : 'Rotate tile (R)'); $('t-rot').title = B ? 'Rotate board 90° (R)' : 'Rotate (R)';
+  $('t-erase').setAttribute('aria-label', B ? 'Remove the selected board (Delete)' : 'Remove tiles (E)'); $('t-erase').title = B ? 'Remove board' : 'Remove (E)';
+  $('t-erase').setAttribute('aria-pressed', String(!B && erase));
+  $('t-colour').setAttribute('aria-expanded', String(!$('colour-pop').hidden));
+  $('t-rot').classList.toggle('ready', B || picked !== null || !!sel || !!pending);
+  $('t-erase').classList.toggle('ready', (B && boards.length > 1) || (picked !== null && !erase));
+}
+function hint(text, kind=''){ try { syncRail(); } catch {} $('hint-text').textContent = text; $('hint').className = 'hint ' + kind; }
+// messages show in the middle of the build area for a moment, then fade: red for anything that went wrong, teal for confirmations
+let tt;
+function toast(t, kind){
+  const el = $('toast');
+  const info = kind ? kind === 'info' : /^(Added|Removed|Board (rotated|removed|turned|set)|Cleared|Restored|One finger)/.test(t);
+  el.textContent = t; el.className = 'toast ' + (info ? 'info' : 'err'); el.hidden = false;
+  el.style.animation = 'none'; void el.offsetWidth; el.style.animation = '';   // replay the pop-in each time
+  el.setAttribute('role', info ? 'status' : 'alert');
+  clearTimeout(tt); tt = setTimeout(() => { el.classList.add('out'); tt = setTimeout(() => el.hidden = true, 400); }, 1800);
+}
+function idleHint(){
+  if (typeof pending !== 'undefined' && pending) hint('This tile doesn’t fit yet. Click it or press R to rotate, or drag it. It won’t be kept unless it fits.', 'bad');
+  else if (view) hint('View mode. Orbit and zoom freely. Tap the eye to keep building.');
+  else if (arrange) hint(boards.length > 1 ? 'Editing boards. Click or drag a board (green where it clips on). Rotate and remove act on the selected board; + adds a board.' : 'Add a second board to clip on, then slide it into place here.');
+  else if (erase) hint(`Remove mode. Tap a tile on level ${level+1} to remove it.`);
+  else if (pickedBlock()) hint(`${pickedBlock().code} selected. Click again to turn it 90°, drag to shift it (drag it off the board to remove it), or press Delete. Tiles marked Fits below can go beside it.`);
+  else if (cursor) hint('Square highlighted. Pick a tile below to place it here.');
+  else if (sel) hint(`${sel.code} ${nm(sel)}. ${matchMedia('(pointer:fine)').matches ? 'Click a square to place, R to rotate.' : 'Tap a square to preview, tap again to place.'}`);
+  else hint('Click a square to highlight it, then pick a tile below. Click a placed tile to select it.');
+}
+
+/* ---------- parts + cart ---------- */
+function partsOf(list){ const c = {}; list.forEach(b => { const k = `${b.code}|${isFluid(b.code) ? '#FF6A13' : colour[1]}`; c[k] = (c[k]||0) + 1; }); return c; }
+function rowsHTML(counts, removable){
+  return Object.entries(counts).sort().map(([k,q]) => {
+    const [code, hex = '#5B6579'] = k.split('|'); const m = BY[code]; if (!m) return '';
+    const cname = (BAMBU.find(c => c[1] === hex) || ['Custom'])[0];
+    return `<li><img src="${m.thumb||''}" alt=""><div><b>${code} ${nm(m)}</b><span><i class="cdot" style="background:${hex}"></i>${cname} · ${m.cells[0]}×${m.cells[1]}</span>${removable ? ` <button class="rm" type="button" data-rm="${k}">remove one</button>` : ''}</div><span class="q">×${q}</span></li>`;
+  }).join('');
+}
+function changed(){
+  if (picked !== null) computeFits();
+  const counts = partsOf(blocks);
+  const n = blocks.length;
+  $('parts').innerHTML = n ? rowsHTML(counts, false) : '<li class="empty">No tiles yet. Every tile you place shows up here.</li>';
+  $('tot-tiles').textContent = n;
+  $('tot-levels').textContent = n ? Math.ceil(Math.max(...blocks.map(b => hb(b) + tallOf(BY[b.code])))/2) : 0;
+  const gb = bounds();
+  $('tot-board').textContent = boards.reduce((n, b) => n + b.w*b.l, 0);
+  $('tot-grid').textContent = `${gb.w}×${gb.l}` + (boards.length > 1 ? ` · ${boards.length} boards` : '');
+  $('parts-count').textContent = n;
+  $('add-cart').disabled = !n;
+  const miss = {}; let nm = 0;
+  for (const code of new Set(blocks.map(b => b.code))){ const d = usedOf(code) - (owned[code] || 0); if (d > 0){ miss[`${code}|${colour[1]}`] = d; nm += d; } }
+  $('add-missing').disabled = !nm; $('add-missing').dataset.miss = JSON.stringify(miss);
+  $('miss-note').textContent = !n ? 'Set what you own in the Store view (the + and − under each piece).' : nm ? `You own enough for all but ${nm} tile${nm === 1 ? '' : 's'} on this map.` : 'You own every tile this map needs.';
+  if (MODELS.length && typeof renderPalette === 'function') try { renderPalette(true); } catch {}
+  $('t-undo').disabled = !undo.length;
+  refreshLevels();
+  store.set('tf-studio-map', { name:$('map-name').value, W, L, boards, blocks, colour });
+}
+function cart(){ return store.get('tf-cart') || {}; }
+function renderCart(){
+  const c = cart(); const n = Object.values(c).reduce((s,q) => s+q, 0);
+  $('cart-count').textContent = n;
+  $('cart').innerHTML = n ? rowsHTML(c, true) : '<li class="empty">Your cart is empty. Build a map, then add its tiles here.</li>';
+}
+$('add-missing').addEventListener('click', () => {
+  const c = cart(), add = JSON.parse($('add-missing').dataset.miss || '{}'); let n = 0;
+  for (const [k,q] of Object.entries(add)){ c[k] = (c[k]||0) + q; n += q; }
+  store.set('tf-cart', c); renderCart(); toast(`Added ${n} missing tile${n === 1 ? '' : 's'} to cart`, 'info');
+});
+$('add-cart').addEventListener('click', () => {
+  const c = cart(); const add = partsOf(blocks);
+  for (const [k,q] of Object.entries(add)) c[k] = (c[k]||0) + q;
+  store.set('tf-cart', c); renderCart(); toast(`Added ${blocks.length} tiles to cart`);
+});
+$('cart').addEventListener('click', e => {
+  const code = e.target.dataset && e.target.dataset.rm; if (!code) return;
+  const c = cart(); c[code]--; if (c[code] <= 0) delete c[code]; store.set('tf-cart', c); renderCart();
+});
+$('empty-cart').addEventListener('click', () => { store.set('tf-cart', {}); renderCart(); });
+function tab(which){
+  $('tab-parts').setAttribute('aria-selected', String(which === 'parts')); $('tab-cart').setAttribute('aria-selected', String(which === 'cart'));
+  $('pane-parts').hidden = $('foot-parts').hidden = which !== 'parts';
+  $('pane-cart').hidden = $('foot-cart').hidden = which !== 'cart';
+}
+$('tab-parts').onclick = () => tab('parts'); $('tab-cart').onclick = () => tab('cart');
+function openDrawer(open){ $('drawer').classList.toggle('open', open); $('parts-btn').setAttribute('aria-expanded', String(open)); }
+$('parts-btn').onclick = () => { tab('parts'); openDrawer(!$('drawer').classList.contains('open')); };
+$('cart-btn').onclick = () => { tab('cart'); openDrawer(true); };
+$('drawer-close').onclick = () => openDrawer(false);
+
+/* ---------- colour ---------- */
+function applyColour(){
+  tileMat.color.set(colour[1]); lowerMat.color.set(colour[1]).multiplyScalar(0.7);
+  tileSmooth.color.set(colour[1]); lowerSmooth.color.set(colour[1]).multiplyScalar(0.7);
+  $('colour-dot').style.background = colour[1]; $('colour-name').textContent = colour[0];
+  $('swatches').querySelectorAll('button').forEach(b => b.setAttribute('aria-checked', String(b.dataset.hex === colour[1])));
+}
+$('swatches').innerHTML = BAMBU.map(([n,h]) => `<button type="button" role="radio" aria-checked="false" data-hex="${h}" style="background:${h}" title="${n}" aria-label="${n}"></button>`).join('');
+$('swatches').addEventListener('click', async e => {
+  const b = e.target.closest('[data-hex]'); if (!b) return;
+  colour = BAMBU.find(c => c[1] === b.dataset.hex); applyColour();
+  if (MODELS.length){ await thumbs(); renderPalette(); changed(); renderCart(); }
+});
+$('t-colour').onclick = () => { const p = $('colour-pop'); p.hidden = !p.hidden; $('t-colour').setAttribute('aria-expanded', String(!p.hidden)); buildBoard(); idleHint(); };
+
+/* ---------- tools ---------- */
+let panMode = false;
+function setMove(p){
+  panMode = p;
+  controls.touches.ONE = p ? THREE.TOUCH.PAN : THREE.TOUCH.ROTATE;
+  controls.mouseButtons.LEFT = p ? THREE.MOUSE.PAN : THREE.MOUSE.ROTATE;
+  const b = $('t-move'); b.setAttribute('aria-pressed', String(p));
+  b.setAttribute('aria-label', p ? 'One finger moves the board. Tap to switch to orbiting the view (M)' : 'One finger orbits the view. Tap to switch to moving the board (M)');
+  $('ico-orbit').hidden = p; $('ico-move').hidden = !p;
+  toast(p ? 'One finger now moves the board' : 'One finger now orbits the view');
+}
+$('t-move').onclick = () => setMove(!panMode);
+function setLevel(l){ dropPending(); if (l !== level && l > 0) tip('level'); level = l; if ($('lv-btns').classList.contains('shut')) $('lv-tog').textContent = `Level ${l + 1} ▸`; hideGhost(); setCursor(null); pickBlock(null, true); refreshLevels(); idleHint(); }
+document.querySelectorAll('[data-level]').forEach(b => b.addEventListener('click', () => setLevel(+b.dataset.level)));
+function setView(v){
+  if (v) tip('view');
+  view = v; $('t-view').setAttribute('aria-pressed', String(v));
+  ['t-rot','t-erase'].forEach(id => $(id).disabled = v);
+  document.querySelectorAll('[data-level]').forEach(b => b.disabled = v);
+  hideGhost(); refreshLevels(); idleHint();
+}
+$('t-view').onclick = () => setView(!view);
+function setErase(v){ if (v) tip('erase'); erase = v; $('t-erase').setAttribute('aria-pressed', String(v)); if (v){ selectTile(null, true); cursor = null; cursorMesh.visible = false; pickBlock(null, true); } hideGhost(); idleHint(); }
+$('t-erase').onclick = () => arrange ? removeBoard() : setErase(!erase);
+function rotate(){ if (placing){ turnPlacing(); return; } if (arrange){ rotateBoard(); return; } if (pending){ turnPending(); return; } const b = pickedBlock(); if (b && !sel){ turnBlock(b); return; } rot = (rot + 1) % 4; if (ghostAt) showGhost(ghostAt.c, ghostAt.r); else idleHint(); }
+$('t-rot').onclick = rotate;
+function doUndo(){
+  if (pending){ const p = pending; pending = null; pendMesh.visible = false; if (p.from) addBlock(p.from, false); changed(); idleHint(); return; }
+  const a = undo.pop(); if (!a) return;
+  if (a.op === 'clear'){ a.list.forEach(b => addBlock(b, false)); toast(`Restored ${a.list.length} tiles`); }
+  else if (a.op === 'swap'){ removeBlock(a.after.id, false); addBlock(a.before, false); }
+  else if (a.op === 'add') removeBlock(a.b.id, false); else addBlock(a.b, false);
+  if (picked !== null && !meshes.has(picked)) picked = null;
+  changed();
+}
+$('t-undo').onclick = doUndo;
+// light up the selected board for a moment so it's clear which one an action applied to
+function flash(){ flashBoard = true; buildBoard(); clearTimeout(flashT); flashT = setTimeout(() => { flashBoard = false; buildBoard(); }, 1400); }
+// move a set of tiles with a board change; tiles crossing onto another board block it
+function tilesOn(bd){
+  const on = [], cross = [];
+  for (const bl of blocks){
+    const cs = cellsOf(BY[bl.code], bl.c, bl.r, bl.rot), n = cs.filter(([x,z]) => onBoard(bd, x, z)).length;
+    if (n === cs.length) on.push(bl); else if (n) cross.push(bl);
+  }
+  return { on, cross };
+}
+// nearest spot (ring by ring) where a board of this size clips on, given the other boards
+function nearestSpot(others, w, l, x0, z0, maxR = 12){
+  for (let R = 0; R <= maxR; R++){
+    let best = null;
+    for (let dx = -R; dx <= R; dx++) for (let dz = -R; dz <= R; dz++){
+      if (Math.max(Math.abs(dx), Math.abs(dz)) !== R) continue;
+      const nb = { x:x0 + dx, z:z0 + dz, w, l };
+      if (!layoutOk([...others, nb])){ const d = dx*dx + dz*dz; if (!best || d < best.d) best = { ...nb, d }; }
+    }
+    if (best) return best;
+  }
+  return null;
+}
+
+/* add a board: pick 6 × 8, 8 × 12 or 12 × 16 in the bar at the top, rotate it, and place it where it clips on */
+let placing = null, placeSize = '8x12';   // placing: { w, l, x, z, ok }
+const ghostBoard = new THREE.Group(); ghostBoard.visible = false; scene.add(ghostBoard);
+const gbFill = new THREE.MeshBasicMaterial({ color:0x4ade80, transparent:true, opacity:0.25, depthWrite:false, side:THREE.DoubleSide });
+const gbLine = new THREE.LineBasicMaterial({ color:0x4ade80 });
+function drawGhostBoard(){
+  if (!placing || placing.x === undefined){ ghostBoard.clear(); ghostBoard.visible = false; return; }
+  drawGhostRect(placing);
+  $('pb-go').disabled = !placing.ok;
+}
+function drawGhostRect({ w, l, x, z, ok }){
+  ghostBoard.clear();
+  const col = new THREE.Color(css(ok ? '--ok' : '--bad'));
+  gbFill.color.copy(col); gbLine.color.copy(col);
+  const f = new THREE.Mesh(new THREE.PlaneGeometry(w*P, l*P), gbFill); f.rotation.x = -Math.PI/2; f.position.set((x + w/2)*P, 0.8, (z + l/2)*P);
+  const X0 = x*P, Z0 = z*P, X1 = (x+w)*P, Z1 = (z+l)*P;
+  const o = new THREE.Line(new THREE.BufferGeometry().setFromPoints([[X0,Z0],[X1,Z0],[X1,Z1],[X0,Z1],[X0,Z0]].map(([a,b]) => new THREE.Vector3(a, 1, b))), gbLine);
+  ghostBoard.add(f, o); ghostBoard.visible = true;
+}
+function aimBoard(c, r){
+  if (!placing) return;
+  const { w, l } = placing, x0 = c - Math.floor(w/2), z0 = r - Math.floor(l/2);
+  const best = nearestSpot(boards, w, l, x0, z0);
+  Object.assign(placing, best ? { x:best.x, z:best.z, ok:true } : { x:x0, z:z0, ok:false });
+  drawGhostBoard();
+  hint(placing.ok ? 'Click to place the board. Rotate 90° with R or the button.' : 'Move closer to an edge so it can clip on.', placing.ok ? 'ok' : 'bad');
+}
+function sizeChoice(k){
+  placeSize = k; document.querySelectorAll('[data-psize]').forEach(b => b.setAttribute('aria-checked', String(b.dataset.psize === k)));
+  if (!placing) return;
+  const [w, l] = PRESETS[k], wide = placing.w > placing.l;
+  const cx = placing.x + Math.floor(placing.w/2), cz = placing.z + Math.floor(placing.l/2);
+  [placing.w, placing.l] = wide ? [l, w] : [w, l];
+  aimBoard(cx, cz);
+}
+function startPlacing(){
+  if (!arrange) setArrange(true);
+  $('movebar').hidden = true;
+  const [w, l] = PRESETS[placeSize];
+  placing = { w, l };
+  selectTile(null, true); setCursor(null); pickBlock(null, true); setErase(false);
+  $('colour-pop').hidden = true; $('placebar').hidden = false; sizeChoice(placeSize);
+  const bb = bounds(); aimBoard(bb.x1 + Math.floor(w/2), bb.z0 + Math.floor(l/2));   // starts just off the right-hand edge
+}
+function turnPlacing(){ if (!placing) return; const cx = placing.x + Math.floor(placing.w/2), cz = placing.z + Math.floor(placing.l/2); [placing.w, placing.l] = [placing.l, placing.w]; aimBoard(cx, cz); }
+function endPlacing(place){
+  if (!placing) return;
+  if (place){
+    if (!placing.ok){ toast('That spot doesn’t clip onto a board'); return; }
+    boards.push({ x:placing.x, z:placing.z, w:placing.w, l:placing.l }); selBoard = boards.length - 1;
+    toast(`Added the ${placing.w} × ${placing.l} board`);
+  }
+  const added = place;
+  placing = null; ghostBoard.visible = false; $('placebar').hidden = true; $('movebar').hidden = !arrange;
+  buildBoard(); syncZoom(); changed(); idleHint(); if (added) flash();
+}
+document.querySelectorAll('[data-psize]').forEach(b => b.addEventListener('click', () => sizeChoice(b.dataset.psize)));
+$('t-addb').onclick = () => placing ? endPlacing(false) : startPlacing();
+$('pb-turn').onclick = turnPlacing;
+$('pb-go').onclick = () => endPlacing(true);
+$('pb-cancel').onclick = () => endPlacing(false);
+
+/* rotate the selected board 90° clockwise; its tiles turn with it, and it shifts to the nearest spot where it still clips on */
+function rotateBoard(){
+  if (placing){ turnPlacing(); return; }
+  const bd = boards[selBoard], { on, cross } = tilesOn(bd);
+  if (cross.length){ toast('A tile crosses onto another board. Move it first.'); return; }
+  const others = boards.filter((_, i) => i !== selBoard);
+  const cx = bd.x + bd.w/2, cz = bd.z + bd.l/2;
+  const spot = others.length ? nearestSpot(others, bd.l, bd.w, Math.round(cx - bd.l/2), Math.round(cz - bd.w/2)) : { x:bd.x, z:bd.z };
+  if (!spot){ toast('No room to rotate this board here'); return; }
+  const nb = { x:spot.x, z:spot.z, w:bd.l, l:bd.w };
+  on.forEach(bl => removeBlock(bl.id, false));
+  boards = boards.map((b, i) => i === selBoard ? nb : b);
+  for (const bl of on){                                  // (u, v) on the old board -> (l - v - h, u) on the turned one
+    const [w, h] = foot(BY[bl.code], bl.rot), u = bl.c - bd.x, v = bl.r - bd.z;
+    addBlock({ ...bl, c:nb.x + (bd.l - v - h), r:nb.z + u, rot:(bl.rot + 1) % 4 }, false);
+  }
+  undo.length = 0; setCursor(null); buildBoard(); frame(); changed(); flash(); toast('Board rotated 90°');
+}
+$('mb-rot').onclick = rotateBoard;
+
+// move board i to (x, z), carrying the tiles that sit wholly on it
+function shiftBoard(i, x, z){
+  const bd = boards[i], dx = x - bd.x, dz = z - bd.z; if (!dx && !dz) return true;
+  const next = boards.map((b, j) => j === i ? { ...b, x, z } : b);
+  const why = layoutOk(next); if (why){ toast(why); return false; }
+  const { on, cross } = tilesOn(bd);
+  if (cross.length){ toast('A tile crosses onto another board. Move it first.'); return false; }
+  on.forEach(bl => removeBlock(bl.id, false));
+  boards = next;
+  on.forEach(bl => addBlock({ ...bl, c:bl.c + dx, r:bl.r + dz }, false));
+  undo.length = 0; setCursor(null); buildBoard(); changed(); return true;
+}
+/* drag a board around while moving boards: green where it clips on (snapping a square or two to the nearest edge), red where it can't go */
+let bdrag = null;   // { i, dc, dr, on, x, z, ok }
+stage.addEventListener('pointerdown', e => {
+  if (!arrange || placing || e.target !== canvas || e.button > 0) return;
+  const sq = squareAt(e.clientX, e.clientY); if (!sq) return;
+  const i = boards.findIndex(bd => onBoard(bd, sq.c, sq.r)); if (i < 0) return;
+  if (selBoard !== i){ selBoard = i; buildBoard(); idleHint(); }
+  if (boards.length < 2) return;                    // a lone board has nothing to clip onto, so it stays put
+  bdrag = { i, dc:sq.c - boards[i].x, dr:sq.r - boards[i].z, on:false, px:e.clientX, py:e.clientY, id:e.pointerId };
+  controls.enabled = false;
+}, { capture:true });
+addEventListener('pointermove', e => {
+  if (!bdrag || e.pointerId !== bdrag.id) return;
+  if (!bdrag.on){ if (Math.hypot(e.clientX - bdrag.px, e.clientY - bdrag.py) < 6) return; bdrag.on = true; }
+  const sq = squareAt(e.clientX, e.clientY, true); if (!sq) return;
+  const bd = boards[bdrag.i], others = boards.filter((_, j) => j !== bdrag.i);
+  const x0 = sq.c - bdrag.dc, z0 = sq.r - bdrag.dr;
+  const spot = nearestSpot(others, bd.w, bd.l, x0, z0, 2);
+  Object.assign(bdrag, spot ? { x:spot.x, z:spot.z, ok:true } : { x:x0, z:z0, ok:false });
+  drawGhostRect({ w:bd.w, l:bd.l, x:bdrag.x, z:bdrag.z, ok:bdrag.ok });
+  hint(bdrag.ok ? 'Green: it clips on here. Let go to drop it.' : 'Red: it needs to touch another board’s edge without overlapping.', bdrag.ok ? 'ok' : 'bad');
+});
+function bdragEnd(e){
+  if (!bdrag || e.pointerId !== bdrag.id) return false;
+  const t = bdrag; bdrag = null; controls.enabled = true; ghostBoard.clear(); ghostBoard.visible = false;
+  if (!t.on) return false;
+  down = null;
+  if (t.ok){ if (shiftBoard(t.i, t.x, t.z)) flash(); }
+  else toast('It can’t go there. It needs to clip onto another board.');
+  idleHint(); return true;
+}
+addEventListener('pointerup', e => { if (bdrag && e.target !== canvas) bdragEnd(e); });
+addEventListener('pointercancel', e => { if (bdrag && e.pointerId === bdrag.id){ bdrag = null; controls.enabled = true; ghostBoard.clear(); ghostBoard.visible = false; } });
+
+// slide the selected board one square; tiles fully on it travel with it
+function moveBoard(dx, dz){
+  if (boards.length < 2) return;
+  const bd = boards[selBoard], nb = { ...bd, x:bd.x + dx, z:bd.z + dz };
+  const next = boards.map((b, i) => i === selBoard ? nb : b);
+  const why = layoutOk(next); if (why){ toast(why); return; }
+  const { on, cross } = tilesOn(bd);
+  if (cross.length){ toast('A tile crosses onto another board. Move it first.'); return; }
+  on.forEach(bl => removeBlock(bl.id, false));
+  boards = next;
+  on.forEach(bl => addBlock({ ...bl, c:bl.c + dx, r:bl.r + dz }, false));
+  undo.length = 0; setCursor(null); buildBoard(); changed();
+}
+document.querySelectorAll('[data-mv]').forEach(b => b.addEventListener('click', () => { const [dx, dz] = b.dataset.mv.split(',').map(Number); moveBoard(dx, dz); }));
+function removeBoard(){
+  if (boards.length < 2){ toast('This is your only board'); return; }
+  const bd = boards[selBoard];
+  if (tilesOn(bd).on.length || tilesOn(bd).cross.length){ toast('Clear the tiles on this board first'); return; }
+  const next = boards.filter((_, i) => i !== selBoard); const why = layoutOk(next); if (why){ toast('Removing it would leave a board unclipped'); return; }
+  boards = next; selBoard = 0; buildBoard(); frame(); changed(); idleHint(); toast('Board removed');
+}
+function setArrange(v){
+  dropPending();
+  if (v) tip('boards');
+  if (!v && placing) endPlacing(false);
+  arrange = v; $('movebar').hidden = !v || !!placing; if (v && view) setView(false);
+  if (v){ selectTile(null, true); setCursor(null); pickBlock(null, true); setErase(false); $('colour-pop').hidden = true; }
+  buildBoard(); idleHint();
+}
+$('m-tiles').onclick = () => setArrange(false);
+$('mb-add').onclick = () => $('t-addb').click();   // the same as the + in the tool rail, where it was easy to miss (14 Nov 2026)
+function setLvOpen(open){
+  $('lv-btns').classList.toggle('shut', !open); $('lv-tog').setAttribute('aria-expanded', String(open));
+  $('lv-tog').textContent = open ? 'Level ▾' : `Level ${level + 1} ▸`;
+  try { localStorage.setItem('tf-lv-open', open ? '1' : '0'); } catch {}
+}
+$('lv-tog').onclick = () => setLvOpen($('lv-btns').classList.contains('shut'));
+try { if (localStorage.getItem('tf-lv-open') === '0') setLvOpen(false); } catch {}
+$('m-boards').onclick = () => setArrange(true);
+$('mb-done').onclick = () => setArrange(false);   // back to tiles
+
+function clearAll(){
+  if (!blocks.length){ toast('The board is already empty'); return; }
+  const list = [...blocks];
+  pending = null; pendMesh.visible = false; setCursor(null); picked = null;
+  list.forEach(b => removeBlock(b.id, false));
+  undo.push({ op:'clear', list }); changed();
+  toast(`Cleared ${list.length} tiles. Undo brings them back.`);
+}
+$('clear-btn').onclick = clearAll;
+$('map-name').addEventListener('change', changed);
+addEventListener('keydown', e => {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z'){ e.preventDefault(); doUndo(); return; }
+  const k = e.key.toLowerCase();
+  if (placing){ if (k === 'r') turnPlacing(); else if (k === 'enter') endPlacing(true); else if (k === 'escape') endPlacing(false); return; }
+  if (tdrag) return;
+  if (arrange && k.startsWith('arrow')){ e.preventDefault(); moveBoard(k === 'arrowleft' ? -1 : k === 'arrowright' ? 1 : 0, k === 'arrowup' ? -1 : k === 'arrowdown' ? 1 : 0); return; }
+  if (arrange && k === 'escape'){ setArrange(false); return; }
+  if (k === 't'){ setArrange(false); return; }
+  if (k === 'b'){ setArrange(true); return; }
+  if (arrange && (k === 'delete' || k === 'backspace')){ e.preventDefault(); removeBoard(); return; }
+  if (arrange && k === 'r'){ rotateBoard(); return; }
+  if (arrange && k === 'e') return;
+  if (k === 'r' && !view) rotate();
+  else if (k === 'e') setErase(!erase);
+  else if (k === 'v') setView(!view);
+  else if (k === 'm') setMove(!panMode);
+  else if ((k === 'delete' || k === 'backspace') && !view){ if (pending){ e.preventDefault(); const p = pending; pending = null; pendMesh.visible = false; if (p.from){ undo.push({ op:'remove', b:p.from }); changed(); } toast('Removed that tile'); idleHint(); } else if (deletePicked()) e.preventDefault(); }
+  else if (k === 'f'){ frame(); }
+  else if (k === '+' || k === '='){ zoomTo(dist() * 0.8); }
+  else if (k === '-' || k === '_'){ zoomTo(dist() * 1.25); }
+  else if (k === 'escape'){ dropPending(); selectTile(null); setErase(false); setCursor(null); pickBlock(null); }
+  else if (/^[1-4]$/.test(k) && !view) setLevel(+k - 1);
+});
+
+/* ---------- palette ---------- */
+let cat = 'Caves', sub = null;   // sub: one group within the range, or null for all of them
+// lava or water: the same pieces either way for now, so it's only the colour (and the names)
+async function setFluid(mode, quiet){
+  if (mode !== 'lava' && mode !== 'water') return;
+  const was = fluidMode; fluidMode = mode; store.set('tf-fluid', mode); setFluidMats();
+  if (was !== mode && MODELS.length){ await thumbs(m => m.kind === 'fluid' || m.kind === 'insert'); renderPalette(true); renderCart && renderCart(); }
+  else renderPalette(true);
+  if (!quiet) toast(mode === 'water' ? 'Water: the river pieces show blue.' : 'Lava: the river pieces show orange.', 'info');
+}
+/* stock: what the user owns (by piece code), kept on this device until accounts exist */
+let owned = store.get('tf-owned') || {}, stockMode = false;
+const usedOf = code => blocks.filter(b => b.code === code).length;
+const leftOf = code => (owned[code] || 0) - usedOf(code);
+function setStockMode(v){
+  if (v) tip('stock');
+  stockMode = v; $('v-stock').setAttribute('aria-checked', String(v)); $('v-store').setAttribute('aria-checked', String(!v));
+  renderPalette();
+}
+$('v-stock').onclick = () => setStockMode(true);
+$('v-store').onclick = () => setStockMode(false);
+const outOfStock = m => stockMode && leftOf(m.code) <= 0;
+function stockStop(m){ if (!outOfStock(m)) return false; toast(`No ${m.code} left in your stock. Switch to Store to see what's missing.`); return true; }
+function selectTile(m, quiet){
+  if (m) dropPending();
+  if (m && !quiet) tip('pick');
+  sel = m; if (m) setErase(false);
+  document.querySelectorAll('.card').forEach(c => c.setAttribute('aria-pressed', String(!!m && c.dataset.code === m.code)));
+  if (m) $('pick').value = m.code;
+  hideGhost(); if (!quiet) idleHint();
+}
+function renderPalette(keep){
+  const names = TABS.filter(n => MODELS.some(m => catOf(m) === n && !m.hidden));
+  const shown = m => !m.hidden && (!stockMode || (owned[m.code] || 0) > 0);
+  $('cats').innerHTML = names.map(n => `<button role="tab" type="button" aria-selected="${n===cat}" data-cat="${n}">${n} <span class="hud">${MODELS.filter(m => catOf(m)===n && shown(m)).length}</span></button>`).join('');
+  $('fluidseg').hidden = cat !== FLUIDTAB;
+  $('f-lava').setAttribute('aria-checked', String(fluidMode === 'lava')); $('f-water').setAttribute('aria-checked', String(fluidMode === 'water'));
+  const gi = m => { const i = (GROUP_ORDER[cat] || []).indexOf(groupOf(m)); return i < 0 ? 99 : i; };
+  const list = MODELS.filter(m => catOf(m) === cat && shown(m)).map((m, i) => [m, i]).sort((a, b) => gi(a[0]) - gi(b[0]) || a[1] - b[1]).map(x => x[0]);
+  const allGroups = [...new Set(list.map(groupOf))];
+  if (sub && !allGroups.includes(sub)) sub = null;
+  const groups = []; for (const m of list){ if (sub && groupOf(m) !== sub) continue; const g = groupOf(m); if (!groups.length || groups[groups.length - 1][0] !== g) groups.push([g, []]); groups[groups.length - 1][1].push(m); }
+  $('subs').innerHTML = allGroups.length > 1 ? [`<button type="button" data-sub="" aria-pressed="${!sub}">All</button>`, ...allGroups.map(g => `<button type="button" data-sub="${g}" aria-pressed="${sub === g}">${g} <span class="hud">${list.filter(m => groupOf(m) === g).length}</span></button>`)].join('') : '';
+  const sl = strip.scrollLeft;
+  const tag = m => {
+    const own = owned[m.code] || 0, used = usedOf(m.code), left = own - used;
+    if (stockMode) return `<em class="tagc ${left > 0 ? 'left' : 'none'}">${left > 0 ? left + ' left' : 'none left'}</em>`;
+    return used > own ? `<em class="tagc miss">missing ${used - own}</em>` : '';
+  };
+  const fitCls = m => fitSet ? (fitSet.has(m.code) ? ' fit' : ' nofit') : '';
+  const card = m => `<button class="card${outOfStock(m) ? ' out' : ''}${fitCls(m)}" type="button" data-code="${m.code}" aria-pressed="${sel && sel.code===m.code}" aria-label="${m.code} ${nm(m)}, ${m.cells[0]} by ${m.cells[1]}"><img src="${m.thumb}" alt=""><b>${nm(m)}</b><span>${m.code} · ${m.cells[0]}×${m.cells[1]}</span>${tag(m)}</button>`;
+  const one = m => stockMode ? card(m)
+      : `<div class="cw">${card(m)}<div class="own"><button type="button" data-own="-1" data-code="${m.code}" aria-label="Own one fewer ${m.code}">−</button><span>Own <b>${owned[m.code] || 0}</b></span><button type="button" data-own="1" data-code="${m.code}" aria-label="Own one more ${m.code}">+</button></div></div>`;
+  $('strip').innerHTML = list.length ? groups.map(([g, ms]) => `<div class="sg" role="group" aria-label="${g}"><span class="sg-h">${g}</span>${ms.map(one).join('')}</div>`).join('')
+    : `<p class="emptynote">${stockMode ? 'You haven’t added any of these to your stock yet. Switch to Store and use + under the pieces you own.' : 'Nothing in this category yet.'}</p>`;
+  $('pick').innerHTML = `<option value="">${cat}: choose…</option>` + groups.map(([g, ms]) => `<optgroup label="${g}">${ms.map(m => `<option value="${m.code}">${m.code} ${nm(m)} (${m.cells[0]}×${m.cells[1]})</option>`).join('')}</optgroup>`).join('');
+  if (sel && catOf(sel) === cat) $('pick').value = sel.code;
+  strip.scrollLeft = keep ? sl : 0; requestAnimationFrame(nudgeState);
+}
+const strip = $('strip');
+function nudgeState(){ $('nudge-l').disabled = strip.scrollLeft <= 2; $('nudge-r').disabled = strip.scrollLeft + strip.clientWidth >= strip.scrollWidth - 2; }
+$('nudge-l').onclick = () => strip.scrollBy({ left:-strip.clientWidth*0.8, behavior:'smooth' });
+$('nudge-r').onclick = () => strip.scrollBy({ left:strip.clientWidth*0.8, behavior:'smooth' });
+strip.addEventListener('scroll', nudgeState, { passive:true });
+strip.addEventListener('wheel', e => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX)){ strip.scrollLeft += e.deltaY; e.preventDefault(); } }, { passive:false });
+new ResizeObserver(nudgeState).observe(strip);
+$('strip').addEventListener('click', e => {
+  const b = e.target.closest('[data-own]'); if (!b) return;
+  e.stopPropagation();
+  const c = b.dataset.code; owned[c] = Math.max(0, (owned[c] || 0) + Number(b.dataset.own)); if (!owned[c]) delete owned[c];
+  store.set('tf-owned', owned); renderPalette(true); changed();
+}, true);
+$('f-lava').onclick = () => setFluid('lava');
+$('f-water').onclick = () => setFluid('water');
+$('subs').addEventListener('click', e => { const b = e.target.closest('[data-sub]'); if (!b) return; sub = b.dataset.sub || null; renderPalette(); });
+$('cats').addEventListener('click', e => { const b = e.target.closest('[data-cat]'); if (!b) return; cat = b.dataset.cat; sub = null; fitSet = null; renderPalette(); computeFits(); if (cat === FLUIDTAB) tip('fluid'); });
+$('pick').addEventListener('change', e => {
+  const m = BY[e.target.value]; if (!m) return; choose(m);
+  const card = document.querySelector(`.card[data-code="${m.code}"]`); if (card) card.scrollIntoView({ behavior:'smooth', inline:'center', block:'nearest' });
+});
+
+/* drag from palette (mouse: any drag; touch: drag upward, sideways swipes scroll the bar) */
+let drag = null;
+$('strip').addEventListener('pointerdown', e => {
+  const card = e.target.closest('.card'); if (!card) return;
+  drag = { card, m:BY[card.dataset.code], x:e.clientX, y:e.clientY, id:e.pointerId, on:false, type:e.pointerType, sl:$('strip').scrollLeft, scrolled:false };
+});
+addEventListener('pointermove', e => {
+  if (!drag || e.pointerId !== drag.id) return;
+  const dx = e.clientX - drag.x, dy = e.clientY - drag.y;
+  if (!drag.on){
+    if (drag.type === 'mouse' && Math.abs(dx) > 6 && Math.abs(dx) > Math.abs(dy)){ $('strip').scrollLeft = drag.sl - dx; drag.scrolled = true; return; }
+    if (drag.scrolled) return;
+    const start = drag.type === 'mouse' ? (dy < -8 && Math.abs(dy) > Math.abs(dx)) : (dy < -12 && Math.abs(dy) > Math.abs(dx));
+    if (!start) return;
+    drag.on = true; setCursor(null); selectTile(drag.m, true); if (view) setView(false);
+    const chip = document.createElement('div'); chip.className = 'dragchip'; chip.innerHTML = `<img src="${drag.m.thumb}" alt="">`;
+    document.body.appendChild(chip); drag.chip = chip;
+    try { drag.card.setPointerCapture(e.pointerId); } catch {}
+  }
+  drag.chip.style.left = e.clientX + 'px'; drag.chip.style.top = e.clientY + 'px';
+  const cell = cellAt(e.clientX, e.clientY);
+  if (cell) showGhost(cell.c, cell.r); else hideGhost();
+});
+function endDrag(e){
+  if (!drag || e.pointerId !== drag.id) return;
+  const d = drag; drag = null;
+  if (!d.on){ if (e.type === 'pointerup' && !d.scrolled) { choose(sel && sel.code === d.m.code && !cursor ? null : d.m); } return; }
+  d.chip.remove();
+  if (ghostAt) place(ghostAt.c, ghostAt.r);
+  hideGhost(); idleHint();
+}
+addEventListener('pointerup', endDrag); addEventListener('pointercancel', endDrag);
+addEventListener('pointerup', e => { if (tdrag && e.target !== canvas){ if (tdrag.on) tdrag.off = true; tdragEnd(e); } });
+$('strip').addEventListener('click', e => { if (e.detail !== 0) return; const card = e.target.closest('.card'); if (card) choose(BY[card.dataset.code]); });
+
+/* ---------- board interaction ---------- */
+const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+function setRay(x, y){ const b = canvas.getBoundingClientRect(); if (x < b.left || x > b.right || y < b.top || y > b.bottom) return false; ndc.set(((x-b.left)/b.width)*2-1, -((y-b.top)/b.height)*2+1); ray.setFromCamera(ndc, camera); return true; }
+function cellAt(x, y){
+  if (!sel || !setRay(x, y)) return null;
+  const hit = ray.intersectObject(plane)[0]; if (!hit) return null;
+  const [w,h] = foot(sel, rot);
+  return { c:Math.round(hit.point.x/P - w/2), r:Math.round(hit.point.z/P - h/2) };
+}
+function blockAt(x, y){
+  if (!setRay(x, y)) return null;
+  const vis = blocks.filter(b => onLevel(b, level)).map(b => meshes.get(b.id));
+  const hit = ray.intersectObjects(vis)[0]; return hit ? blocks.find(b => b.id === hit.object.userData.id) : null;
+}
+function squareAt(x, y, any){
+  if (!setRay(x, y)) return null;
+  const hit = ray.intersectObject(plane)[0]; if (!hit) return null;
+  const c = Math.floor(hit.point.x / P), r = Math.floor(hit.point.z / P);
+  return (any || inBoard(c, r)) ? { c, r } : null;
+}
+function place(c, r){
+  dropPending();
+  if (stockStop(sel)) return;
+  const res = check(sel, c, r, rot, level);
+  if (!res.ok){
+    const on = cellsOf(sel, c, r, rot).some(([x,z]) => inBoard(x, z));
+    if (!on){ toast(res.why); return; }
+    const m = sel; selectTile(null, true); setPending({ code:m.code, c, r, rot, level }, res.why); return;
+  }
+  const b = { id:nextId++, code:sel.code, c, r, rot, level:res.lvl };
+  addBlock(b); pickBlock(b.id, true); tip('placed');
+}
+let hover = null, down = null, lastTap = null, turnT = 0;
+function duplicate(b){
+  const m = BY[b.code]; if (stockStop(m)) return;
+  pickBlock(null, true); setCursor(null); rot = b.rot;
+  if (catOf(m) !== cat || (sub && groupOf(m) !== sub)){ cat = catOf(m); sub = null; renderPalette(); }
+  selectTile(m); toast(`Copy of ${b.code} ready. Click where it should go.`, 'info');
+}
+/* a tile that doesn't fit yet: shown red where it was put, so it can be rotated or dragged into a spot that works.
+   It only becomes a real tile once it fits; move on to something else and it's dropped (a moved tile goes back). */
+let pending = null;   // { code, c, r, rot, level, from? }
+const pendMat = new THREE.MeshStandardMaterial({ color:0xE0796F, emissive:0xC9574E, emissiveIntensity:0.35, transparent:true, opacity:0.72, flatShading:true, depthWrite:false });
+const pendMesh = new THREE.Mesh(new THREE.BufferGeometry(), pendMat); pendMesh.visible = false; scene.add(pendMesh);
+function showPending(){
+  if (!pending){ pendMesh.visible = false; return; }
+  const m = BY[pending.code], [w, h] = foot(m, pending.rot);
+  pendMesh.geometry = geos[pending.code]; pendMesh.rotation.y = -pending.rot * Math.PI/2;
+  pendMesh.position.set((pending.c + w/2)*P, pending.level*LV + 0.3, (pending.r + h/2)*P); pendMesh.visible = true;
+}
+function setPending(p, why){
+  tip('red');
+  pickBlock(null, true); setCursor(null); hideGhost();
+  pending = p; showPending();
+  hint(`Doesn’t fit yet: ${why || 'it overlaps another tile.'} Click it or press R to rotate, or drag it. It won’t be kept unless it fits.`, 'bad');
+}
+function settle(){                                      // fits now? make it a real tile
+  const p = pending, res = check(BY[p.code], p.c, p.r, p.rot, p.level);
+  if (!res.ok){ showPending(); hint(`Still doesn’t fit: ${res.why} Rotate or drag it.`, 'bad'); return false; }
+  pending = null; pendMesh.visible = false;
+  const nb = { id:p.from ? p.from.id : nextId++, code:p.code, c:p.c, r:p.r, rot:p.rot, level:res.lvl };
+  addBlock(nb, false); undo.push(p.from ? { op:'swap', before:p.from, after:nb } : { op:'add', b:nb }); changed(); pickBlock(nb.id); rot = nb.rot;
+  idleHint(); return true;
+}
+function turnPending(){ if (!pending) return; pending.rot = (pending.rot + 1) % 4; settle(); }
+function dropPending(){                                 // moving on: a tile that still doesn't fit isn't kept
+  if (!pending) return;
+  const p = pending; pending = null; pendMesh.visible = false;
+  if (p.from){ addBlock(p.from, false); changed(); toast('It didn’t fit, so it went back where it was'); }
+  else toast('Removed: that tile didn’t fit');
+  idleHint();
+}
+const pendHit = (x, y) => pending && setRay(x, y) && ray.intersectObject(pendMesh).length > 0;
+/* drag a placed tile to shift it; it may hang off the board while you drag, but not be left there.
+   Dropped right off the board, it is removed. */
+let tdrag = null;   // { b, dc, dr, on, c, r, why, off }
+const dragMat = new THREE.MeshStandardMaterial({ color:0x4ade80, emissive:0x4ade80, emissiveIntensity:0.45, transparent:true, opacity:0.6, flatShading:true, depthWrite:false });
+const dragMesh = new THREE.Mesh(new THREE.BufferGeometry(), dragMat); dragMesh.visible = false; scene.add(dragMesh);
+stage.addEventListener('pointerdown', e => {
+  if (e.target !== canvas || view || erase || arrange || placing || sel || boardFocus() || e.button > 0) return;
+  if (pendHit(e.clientX, e.clientY)){
+    const sq = squareAt(e.clientX, e.clientY, true); if (!sq) return;
+    tdrag = { b:pending, pend:true, dc:sq.c - pending.c, dr:sq.r - pending.r, on:false, x:e.clientX, y:e.clientY, id:e.pointerId };
+    controls.enabled = false; return;
+  }
+  const b = blockAt(e.clientX, e.clientY); if (!b) return;
+  if (supporting(b)) return;                        // tiles holding up a level stay put
+  const sq = squareAt(e.clientX, e.clientY, true); if (!sq) return;
+  tdrag = { b, dc:sq.c - b.c, dr:sq.r - b.r, on:false, x:e.clientX, y:e.clientY, id:e.pointerId };
+  controls.enabled = false;                          // this drag moves the tile, not the camera
+}, { capture:true });
+function tdragMove(e){
+  if (!tdrag || e.pointerId !== tdrag.id) return;
+  if (!tdrag.on){
+    if (Math.hypot(e.clientX - tdrag.x, e.clientY - tdrag.y) < 6) return;
+    tdrag.on = true; if (tdrag.pend) pendMesh.visible = false; else { dropPending(); removeBlock(tdrag.b.id, false); } pickBlock(null, true); setCursor(null);
+    dragMesh.geometry = geos[tdrag.b.code]; dragMesh.rotation.y = -tdrag.b.rot * Math.PI/2; dragMesh.visible = true;
+  }
+  const sq = squareAt(e.clientX, e.clientY, true); if (!sq) return;
+  const b = tdrag.b, m = BY[b.code], [w, h] = foot(m, b.rot), c = sq.c - tdrag.dc, r = sq.r - tdrag.dr;
+  const cs = cellsOf(m, c, r, b.rot), onCount = cs.filter(([x,z]) => inBoard(x, z)).length;
+  const res = check(m, c, r, b.rot, b.level);
+  Object.assign(tdrag, { c, r, ok:res.ok, why:res.why, lvl:res.lvl, off:onCount === 0 });
+  dragMesh.position.set((c + w/2)*P, res.lvl*LV + 0.5, (r + h/2)*P);
+  const col = new THREE.Color(css(res.ok ? '--ok' : '--bad')); dragMat.color.copy(col); dragMat.emissive.copy(col);
+  dragMat.opacity = tdrag.off ? 0.3 : 0.6;
+  hint(res.ok ? 'Let go to drop it here.' : tdrag.off ? 'Let go here to remove the tile.' : `${res.why} You can still let go, then rotate it.`, res.ok ? 'ok' : 'bad');
+}
+function tdragEnd(e){
+  if (!tdrag || e.pointerId !== tdrag.id) return false;
+  const t = tdrag; tdrag = null; controls.enabled = true;
+  if (!t.on) return false;                           // a plain click: select or turn as usual
+  dragMesh.visible = false; down = null;
+  if (t.pend){
+    if (t.off){ dropPending(); return true; }
+    Object.assign(pending, { c:t.c ?? pending.c, r:t.r ?? pending.r }); settle(); return true;
+  }
+  if (t.off){ undo.push({ op:'remove', b:t.b }); changed(); toast(`Removed ${t.b.code}. Undo brings it back.`); idleHint(); return true; }
+  if (t.c === undefined || (t.c === t.b.c && t.r === t.b.r)){ addBlock(t.b, false); pickBlock(t.b.id, true); idleHint(); return true; }
+  if (t.ok){ const nb = { ...t.b, c:t.c, r:t.r, level:t.lvl }; addBlock(nb, false); undo.push({ op:'swap', before:t.b, after:nb }); changed(); pickBlock(nb.id); }
+  else setPending({ ...t.b, c:t.c, r:t.r, from:t.b }, t.why);
+  return true;
+}
+addEventListener('pointermove', tdragMove);
+addEventListener('pointercancel', e => { if (tdrag && e.pointerId === tdrag.id){ const t = tdrag; tdrag = null; controls.enabled = true; dragMesh.visible = false; if (t.on){ if (t.pend) showPending(); else addBlock(t.b, false); } } });
+canvas.addEventListener('pointerdown', e => { down = { x:e.clientX, y:e.clientY }; $('colour-pop').hidden = true; });
+canvas.addEventListener('pointermove', e => {
+  if (placing){ const sq = squareAt(e.clientX, e.clientY, true); if (sq) aimBoard(sq.c, sq.r); return; }
+  if (tdrag) return;
+  if (drag || e.pointerType !== 'mouse' || view || arrange) return;
+  if (erase){
+    const b = blockAt(e.clientX, e.clientY);
+    if (hover && hover !== b) meshes.get(hover.id).material = matOf(hover.code);
+    hover = b; if (b) meshes.get(b.id).material = hiMat;
+    return;
+  }
+  const cell = cellAt(e.clientX, e.clientY); if (cell) showGhost(cell.c, cell.r); else hideGhost();
+});
+canvas.addEventListener('pointerleave', () => { if (!drag && !matchMedia('(pointer:coarse)').matches) hideGhost(); });
+canvas.addEventListener('pointerup', e => {
+  if (bdragEnd(e)) return;
+  if (tdragEnd(e)) return;
+  if (!down || Math.hypot(e.clientX-down.x, e.clientY-down.y) > 6 || view) return;
+  if (placing){
+    const sq = squareAt(e.clientX, e.clientY, true); if (!sq) return;
+    if (e.pointerType === 'mouse') { aimBoard(sq.c, sq.r); endPlacing(true); } else aimBoard(sq.c, sq.r);   // touch: tap to aim, then Place here
+    return;
+  }
+  if (arrange){
+    const sq = squareAt(e.clientX, e.clientY); if (!sq) return;
+    const i = boards.findIndex(bd => onBoard(bd, sq.c, sq.r)); if (i >= 0){ selBoard = i; buildBoard(); idleHint(); }
+    return;
+  }
+  if (erase){
+    const b = blockAt(e.clientX, e.clientY); if (!b) return;
+    if (supporting(b)){ toast('Remove the tile on top of it first'); return; }
+    removeBlock(b.id); hover = null; return;
+  }
+  if (pending){ if (pendHit(e.clientX, e.clientY)){ turnPending(); return; } dropPending(); }
+  const hitB = blockAt(e.clientX, e.clientY);
+  // clicking the tile that's already selected turns it, even with a tile ready to place: half-height riverbed and cave tiles would
+  // otherwise stack a new one on top. Castle pieces are symmetrical, so they still stack straight away (14 Nov 2026).
+  const turnFirst = hitB && hitB.id === picked && !/^P2/.test(hitB.code);
+  if (turnFirst && sel){ hideGhost(); turnBlock(hitB); return; }   // keep the tile in hand, so placing carries on after the turn
+  if (hitB && (!sel || !ghostAt || !ghostAt.ok)){
+    selectTile(null, true); hideGhost();
+    const now = performance.now();
+    if (lastTap && lastTap.id === hitB.id && now - lastTap.t < 320){ clearTimeout(turnT); lastTap = null; duplicate(hitB); return; }
+    lastTap = { id:hitB.id, t:now };
+    if (picked === hitB.id){ clearTimeout(turnT); turnT = setTimeout(() => { const b = blocks.find(x => x.id === hitB.id); if (b) turnBlock(b); }, 300); }   // a single click turns it, once we know it isn't a double click
+    else pickBlock(hitB.id);
+    return;
+  }
+  if (!sel){
+    const sq = squareAt(e.clientX, e.clientY);
+    if (!sq){ setCursor(null); pickBlock(null); return; }
+    if (cursor && cursor.c === sq.c && cursor.r === sq.r) setCursor(null); else setCursor(sq);
+    return;
+  }
+  const cell = cellAt(e.clientX, e.clientY); if (!cell) return;
+  if (e.pointerType === 'mouse'){ place(cell.c, cell.r); showGhost(cell.c, cell.r); return; }
+  // touch: first tap previews (pulsing), second tap on the same spot places
+  if (ghostAt && ghostAt.c === cell.c && ghostAt.r === cell.r && ghostAt.ok){ place(cell.c, cell.r); hideGhost(); idleHint(); return; }
+  const res = showGhost(cell.c, cell.r);
+  $('place-btn').hidden = !(res && res.ok);
+});
+$('place-btn').onclick = () => { if (ghostAt && ghostAt.ok){ place(ghostAt.c, ghostAt.r); hideGhost(); idleHint(); } };
+
+/* ---------- loop ---------- */
+const clock = new THREE.Clock();
+(function tick(){
+  const t = clock.getElapsedTime();
+  if (ghost.visible){ ghostMat.opacity = 0.4 + 0.25*Math.sin(t*6); padMat.opacity = 0.25 + 0.2*Math.sin(t*6); }
+  controls.update(); renderer.render(scene, camera); requestAnimationFrame(tick);
+})();
+
+/* ---------- boot ---------- */
+// the standard rebuilds took over the original codes (14 Nov 2026): maps saved with the interim S codes still load
+const ALIAS = code => /^P20\d\dS$/.test(code) ? code.slice(0, -1) : code === 'P3002S' ? 'P3002' : code;
+// the lava 'mirror' pieces were the same pieces turned (P4102 = P4101 turned twice, P4104 = P4103 twice, P4124 = P4123 three
+// times), so they're gone from the tray and saved maps get the base piece, turned (14 Nov 2026)
+const TURNED = { P4102:['P4101', 2], P4104:['P4103', 2], P4124:['P4123', 3] };
+const unmirror = b => TURNED[b.code] ? { ...b, code:TURNED[b.code][0], rot:(b.rot + TURNED[b.code][1]) % 4 } : b;
+function applyMap(map, first){
+  if (!first){ pending = null; pendMesh.visible = false; setCursor(null); picked = null; [...blocks].forEach(b => removeBlock(b.id, false)); }
+  if (map.colour) colour = map.colour;
+  if (map.fluid && map.fluid !== fluidMode) setFluid(map.fluid, true);
+  applyColour();
+  boards = (map.boards && map.boards.length) ? map.boards.map(b => ({ ...b })) : [{ x:0, z:0, w:map.W || 12, l:map.L || 8 }]; selBoard = 0;
+  $('map-name').value = map.name || 'Untitled map';
+  buildBoard();
+  for (const b0 of map.blocks || []){ const b = unmirror({ ...b0, code:ALIAS(b0.code) }); if (BY[b.code]) addBlock({ code:b.code, c:b.c, r:b.r, rot:b.rot, level:b.level, id:nextId++ }, false); }
+  undo.length = 0;
+  if (!first){ frame(); changed(); }
+}
+
+/* ---- Save bar + Designs (My designs: private to each person; Browse: designs people choose to share) ---- */
+const DS = { db:null, uid:null, user:null, mine:[], shared:[], tab:'mine', unsubMine:null, unsubShared:null, armed:null, ready:false };
+const slug = t => (t || 'untitled').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'untitled';
+const esc = t => String(t).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[c]);
+function snapshotMap(){
+  return { name:($('map-name').value || 'Untitled map').trim().slice(0, 80), boards:boards.map(b => ({ x:b.x, z:b.z, w:b.w, l:b.l })),
+    blocks:blocks.map(b => ({ code:b.code, c:b.c, r:b.r, rot:b.rot, level:b.level })), colour, fluid:fluidMode, at:Date.now() };
+}
+const summary = d => {
+  const area = (d.boards || []).reduce((a, b) => a + b.w * b.l, 0);
+  const codes = [...new Set((d.blocks || []).map(b => b.code))];
+  return `${(d.blocks || []).length} tiles · ${(d.boards || []).length} board${(d.boards || []).length === 1 ? '' : 's'}, ${area} squares` + (codes.length ? ` · ${codes.slice(0, 5).join(', ')}${codes.length > 5 ? '…' : ''}` : '');
+};
+const localMine = () => store.get('tf-designs') || {};
+async function dsInit(){
+  try {
+    const [db, user] = await Promise.all([claude.use('db'), claude.use('user')]);
+    if (!db || !user) return;
+    const uid = await user.id(); if (!uid) return;
+    Object.assign(DS, { db, user, uid, owner: await user.isOwner().catch(() => false) });
+  } catch {}
+}
+const dsReady = (async () => { if (window.claude && claude.use) await dsInit(); DS.ready = true; })();
+async function saveDesign(){
+  const d = snapshotMap();
+  if (!d.blocks.length){ toast('Place a tile or two before saving'); return; }
+  const id = slug(d.name);
+  await dsReady;
+  if (DS.db){
+    try { await DS.db.collection('data/users/' + DS.uid).doc(id).set(d); }
+    catch (e){ toast(e && e.code === 'quota_exceeded' ? 'Design storage is full. Delete an old design first.' : 'Could not save right now. Try again in a moment.'); return; }
+    const sh = DS.shared.find(x => x.uid === DS.uid && x.id === id);
+    if (sh) await shareDesign(id, d, true);
+  } else {
+    const m = localMine(); m[id] = d; store.set('tf-designs', m);
+  }
+  toast(`Saved "${d.name}" to My designs`, 'info');
+  if ($('designs').open) renderDesigns();
+}
+async function shareDesign(id, d, on){
+  const ref = DS.db.doc('gallery/' + DS.uid);
+  const cur = (await ref.get().catch(() => null));
+  const body = cur && cur.exists ? structuredClone(cur.data()) : { designs:{} };
+  body.designs = body.designs || {};
+  if (on) body.designs[id] = { ...d, at:Date.now() }; else delete body.designs[id];
+  body.by = DS.uid;
+  await ref.set(body);
+}
+function watchDesigns(){
+  if (!DS.db || DS.unsubMine) return;
+  const timer = setTimeout(() => { if (!DS.loaded) note('Designs can\'t be reached yet. Saving still works on this device.'); }, 10000);
+  DS.unsubMine = DS.db.collection('data/users/' + DS.uid).onSnapshot(s => {
+    DS.mine = s.docs.map(x => ({ id:x.id, ...x.data() })); if (!s.metadata.fromCache){ DS.loaded = true; clearTimeout(timer); } renderDesigns();
+  }, () => { clearTimeout(timer); note('My designs are unavailable right now.'); });
+  DS.unsubShared = DS.db.collection('gallery').limit(500).onSnapshot(s => {
+    DS.shared = s.docs.flatMap(x => { const g = x.data() || {}; return Object.entries(g.designs || {}).map(([id, d]) => ({ id, uid:x.id, ...d })); });
+    renderDesigns();
+  }, () => note('Browse is unavailable right now.'));
+}
+function note(t){ $('ds-note').textContent = t; }
+let names = {};
+const BUILTIN = [{"id": "lava-river", "uid": "terraform", "name": "Lava river: every piece", "boards": [{"x": 0, "z": 0, "w": 12, "l": 12}], "blocks": [{"code": "P4022", "c": 1, "r": 10, "rot": 0, "level": 0}, {"code": "P4001", "c": 1, "r": 8, "rot": 0, "level": 0}, {"code": "P4003", "c": 1, "r": 6, "rot": 0, "level": 0}, {"code": "P4031", "c": 1, "r": 4, "rot": 0, "level": 0}, {"code": "P4004", "c": 0, "r": 2, "rot": 0, "level": 0}, {"code": "P4002", "c": 0, "r": 0, "rot": 0, "level": 0}, {"code": "P2012", "c": 0, "r": 10, "rot": 3, "level": 0}, {"code": "P2012", "c": 0, "r": 8, "rot": 3, "level": 0}, {"code": "P2012", "c": 0, "r": 6, "rot": 3, "level": 0}, {"code": "P2012", "c": 0, "r": 4, "rot": 3, "level": 0}, {"code": "P4123", "c": 3, "r": 9, "rot": 0, "level": 0}, {"code": "P4103", "c": 3, "r": 8, "rot": 0, "level": 0}, {"code": "P4101", "c": 3, "r": 6, "rot": 0, "level": 0}, {"code": "P4131", "c": 1, "r": 4, "rot": 0, "level": 0}, {"code": "P4101", "c": 2, "r": 2, "rot": 0, "level": 0}, {"code": "P4101", "c": 2, "r": 0, "rot": 0, "level": 0}, {"code": "P4006", "c": 3, "r": 10, "rot": 3, "level": 0}, {"code": "P4011", "c": 5, "r": 10, "rot": 3, "level": 0}, {"code": "P4012", "c": 6, "r": 10, "rot": 3, "level": 0}, {"code": "P4001", "c": 7, "r": 10, "rot": 3, "level": 0}, {"code": "P4003", "c": 9, "r": 10, "rot": 3, "level": 0}, {"code": "P4011", "c": 11, "r": 10, "rot": 3, "level": 0}, {"code": "P4103", "c": 4, "r": 9, "rot": 3, "level": 0}, {"code": "P4103", "c": 5, "r": 9, "rot": 3, "level": 0}, {"code": "P4103", "c": 6, "r": 9, "rot": 3, "level": 0}, {"code": "P4101", "c": 7, "r": 9, "rot": 3, "level": 0}, {"code": "P4101", "c": 9, "r": 9, "rot": 3, "level": 0}, {"code": "P4103", "c": 11, "r": 9, "rot": 3, "level": 0}, {"code": "P4033", "c": 9, "r": 3, "rot": 2, "level": 0}, {"code": "P4133", "c": 9, "r": 3, "rot": 2, "level": 0}, {"code": "P4004", "c": 9, "r": 1, "rot": 2, "level": 0}, {"code": "P4012", "c": 9, "r": 0, "rot": 2, "level": 0}, {"code": "P4101", "c": 8, "r": 1, "rot": 2, "level": 0}, {"code": "P4103", "c": 8, "r": 0, "rot": 2, "level": 0}, {"code": "P4011", "c": 11, "r": 3, "rot": 1, "level": 0}, {"code": "P4103", "c": 11, "r": 5, "rot": 1, "level": 0}, {"code": "P2012", "c": 11, "r": 1, "rot": 3, "level": 0}, {"code": "P2001", "c": 11, "r": 0, "rot": 0, "level": 0}, {"code": "P4046", "c": 4, "r": 7, "rot": 0, "level": 0}, {"code": "P4047", "c": 5, "r": 7, "rot": 3, "level": 0}, {"code": "P4046", "c": 5, "r": 6, "rot": 2, "level": 0}, {"code": "P4047", "c": 4, "r": 6, "rot": 1, "level": 0}, {"code": "P4050", "c": 7, "r": 8, "rot": 0, "level": 0}, {"code": "P4051", "c": 8, "r": 8, "rot": 2, "level": 0}, {"code": "P4043", "c": 7, "r": 5, "rot": 0, "level": 0}, {"code": "P4041", "c": 4, "r": 2, "rot": 0, "level": 0}, {"code": "P4042", "c": 6, "r": 2, "rot": 0, "level": 0}, {"code": "P4114", "c": 9, "r": 7, "rot": 0, "level": 0}, {"code": "P4114", "c": 6, "r": 6, "rot": 0, "level": 0}, {"code": "P4114", "c": 8, "r": 5, "rot": 0, "level": 0}, {"code": "P4114", "c": 3, "r": 4, "rot": 0, "level": 0}, {"code": "P4114", "c": 5, "r": 4, "rot": 0, "level": 0}, {"code": "P4114", "c": 7, "r": 3, "rot": 0, "level": 0}, {"code": "P4114", "c": 3, "r": 0, "rot": 0, "level": 0}, {"code": "P4114", "c": 5, "r": 0, "rot": 0, "level": 0}, {"code": "P4112", "c": 11, "r": 7, "rot": 0, "level": 0}, {"code": "P4112", "c": 10, "r": 5, "rot": 0, "level": 0}, {"code": "P4112", "c": 3, "r": 2, "rot": 0, "level": 0}, {"code": "P4112", "c": 5, "r": 2, "rot": 0, "level": 0}, {"code": "P4112", "c": 7, "r": 1, "rot": 0, "level": 0}, {"code": "P4111", "c": 4, "r": 8, "rot": 0, "level": 0}, {"code": "P4111", "c": 5, "r": 8, "rot": 0, "level": 0}, {"code": "P4111", "c": 6, "r": 8, "rot": 0, "level": 0}, {"code": "P4111", "c": 8, "r": 7, "rot": 0, "level": 0}, {"code": "P4111", "c": 11, "r": 6, "rot": 0, "level": 0}, {"code": "P4111", "c": 4, "r": 3, "rot": 0, "level": 0}, {"code": "P4111", "c": 6, "r": 3, "rot": 0, "level": 0}, {"code": "P4111", "c": 7, "r": 0, "rot": 0, "level": 0}], "at": 9100000000000000.0}, {"id": "lava-stones", "uid": "terraform", "name": "Stepping stones", "boards": [{"x": 0, "z": 0, "w": 12, "l": 7}], "blocks": [{"code": "P4046", "c": 1, "r": 5, "rot": 0, "level": 0}, {"code": "P4047", "c": 2, "r": 5, "rot": 3, "level": 0}, {"code": "P4046", "c": 2, "r": 4, "rot": 2, "level": 0}, {"code": "P4047", "c": 1, "r": 4, "rot": 1, "level": 0}, {"code": "P4050", "c": 5, "r": 4, "rot": 0, "level": 0}, {"code": "P4048", "c": 6, "r": 4, "rot": 0, "level": 0}, {"code": "P4049", "c": 7, "r": 4, "rot": 0, "level": 0}, {"code": "P4051", "c": 8, "r": 4, "rot": 2, "level": 0}, {"code": "P4041", "c": 5, "r": 0, "rot": 0, "level": 0}, {"code": "P4042", "c": 7, "r": 0, "rot": 0, "level": 0}, {"code": "P4043", "c": 9, "r": 0, "rot": 0, "level": 0}, {"code": "P4114", "c": 3, "r": 5, "rot": 0, "level": 0}, {"code": "P4114", "c": 5, "r": 5, "rot": 0, "level": 0}, {"code": "P4114", "c": 7, "r": 5, "rot": 0, "level": 0}, {"code": "P4114", "c": 3, "r": 3, "rot": 0, "level": 0}, {"code": "P4114", "c": 0, "r": 2, "rot": 0, "level": 0}, {"code": "P4114", "c": 5, "r": 2, "rot": 0, "level": 0}, {"code": "P4114", "c": 7, "r": 2, "rot": 0, "level": 0}, {"code": "P4114", "c": 2, "r": 1, "rot": 0, "level": 0}, {"code": "P4114", "c": 0, "r": 0, "rot": 0, "level": 0}, {"code": "P4112", "c": 0, "r": 5, "rot": 0, "level": 0}, {"code": "P4112", "c": 9, "r": 5, "rot": 0, "level": 0}, {"code": "P4112", "c": 9, "r": 3, "rot": 0, "level": 0}, {"code": "P4112", "c": 4, "r": 1, "rot": 0, "level": 0}, {"code": "P4112", "c": 9, "r": 1, "rot": 0, "level": 0}, {"code": "P4112", "c": 6, "r": 0, "rot": 0, "level": 0}, {"code": "P4112", "c": 8, "r": 0, "rot": 0, "level": 0}, {"code": "P4111", "c": 1, "r": 6, "rot": 0, "level": 0}, {"code": "P4111", "c": 2, "r": 6, "rot": 0, "level": 0}, {"code": "P4111", "c": 0, "r": 4, "rot": 0, "level": 0}, {"code": "P4111", "c": 2, "r": 3, "rot": 0, "level": 0}, {"code": "P4111", "c": 5, "r": 1, "rot": 0, "level": 0}, {"code": "P4111", "c": 7, "r": 1, "rot": 0, "level": 0}, {"code": "P4111", "c": 2, "r": 0, "rot": 0, "level": 0}, {"code": "P4111", "c": 3, "r": 0, "rot": 0, "level": 0}, {"code": "P4111", "c": 4, "r": 0, "rot": 0, "level": 0}], "at": 9100000000000000.0}, {"id": "lava-headland", "uid": "terraform", "name": "Headland and causeway", "boards": [{"x": 0, "z": 0, "w": 12, "l": 6}], "blocks": [{"code": "P4011", "c": 0, "r": 5, "rot": 0, "level": 0}, {"code": "P4013", "c": 0, "r": 2, "rot": 0, "level": 0}, {"code": "P4003", "c": 0, "r": 0, "rot": 0, "level": 0}, {"code": "P4103", "c": 2, "r": 5, "rot": 0, "level": 0}, {"code": "P4103", "c": 2, "r": 4, "rot": 0, "level": 0}, {"code": "P4103", "c": 2, "r": 2, "rot": 0, "level": 0}, {"code": "P4101", "c": 2, "r": 0, "rot": 0, "level": 0}, {"code": "P4048", "c": 2, "r": 3, "rot": 0, "level": 0}, {"code": "P4049", "c": 3, "r": 3, "rot": 0, "level": 0}, {"code": "P4050", "c": 4, "r": 3, "rot": 2, "level": 0}, {"code": "P4114", "c": 3, "r": 4, "rot": 0, "level": 0}, {"code": "P4114", "c": 5, "r": 4, "rot": 0, "level": 0}, {"code": "P4114", "c": 5, "r": 2, "rot": 0, "level": 0}, {"code": "P4114", "c": 3, "r": 1, "rot": 0, "level": 0}, {"code": "P4114", "c": 5, "r": 0, "rot": 0, "level": 0}, {"code": "P4111", "c": 3, "r": 0, "rot": 0, "level": 0}, {"code": "P4111", "c": 4, "r": 0, "rot": 0, "level": 0}], "at": 9100000000000000.0}, {"id": "lava-diagonals", "uid": "terraform", "name": "Diagonals, inside corner, S-curve mirror", "boards": [{"x": 0, "z": 0, "w": 12, "l": 12}], "blocks": [{"code": "P4032", "c": 3, "r": 11, "rot": 0, "level": 0}, {"code": "P4132", "c": 5, "r": 11, "rot": 0, "level": 0}, {"code": "P4032", "c": 7, "r": 11, "rot": 2, "level": 0}, {"code": "P4132", "c": 6, "r": 11, "rot": 2, "level": 0}, {"code": "P4032", "c": 2, "r": 10, "rot": 0, "level": 0}, {"code": "P4132", "c": 4, "r": 10, "rot": 0, "level": 0}, {"code": "P4032", "c": 6, "r": 10, "rot": 2, "level": 0}, {"code": "P4132", "c": 5, "r": 10, "rot": 2, "level": 0}, {"code": "P4032", "c": 1, "r": 9, "rot": 0, "level": 0}, {"code": "P4132", "c": 3, "r": 9, "rot": 0, "level": 0}, {"code": "P4032", "c": 5, "r": 9, "rot": 2, "level": 0}, {"code": "P4132", "c": 4, "r": 9, "rot": 2, "level": 0}, {"code": "P4032", "c": 0, "r": 8, "rot": 0, "level": 0}, {"code": "P4132", "c": 2, "r": 8, "rot": 0, "level": 0}, {"code": "P4032", "c": 4, "r": 8, "rot": 2, "level": 0}, {"code": "P4132", "c": 3, "r": 8, "rot": 2, "level": 0}, {"code": "P4035", "c": 0, "r": 6, "rot": 0, "level": 0}, {"code": "P4135", "c": 2, "r": 6, "rot": 0, "level": 0}, {"code": "P4035", "c": 4, "r": 6, "rot": 2, "level": 0}, {"code": "P4135", "c": 3, "r": 6, "rot": 2, "level": 0}, {"code": "P4035", "c": 1, "r": 5, "rot": 0, "level": 0}, {"code": "P4135", "c": 3, "r": 5, "rot": 0, "level": 0}, {"code": "P4035", "c": 5, "r": 5, "rot": 2, "level": 0}, {"code": "P4135", "c": 4, "r": 5, "rot": 2, "level": 0}, {"code": "P4035", "c": 2, "r": 4, "rot": 0, "level": 0}, {"code": "P4135", "c": 4, "r": 4, "rot": 0, "level": 0}, {"code": "P4035", "c": 6, "r": 4, "rot": 2, "level": 0}, {"code": "P4135", "c": 5, "r": 4, "rot": 2, "level": 0}, {"code": "P4035", "c": 3, "r": 3, "rot": 0, "level": 0}, {"code": "P4135", "c": 5, "r": 3, "rot": 0, "level": 0}, {"code": "P4035", "c": 7, "r": 3, "rot": 2, "level": 0}, {"code": "P4135", "c": 6, "r": 3, "rot": 2, "level": 0}, {"code": "P4021", "c": 9, "r": 2, "rot": 0, "level": 0}, {"code": "P4103", "c": 11, "r": 3, "rot": 0, "level": 0}, {"code": "P4114", "c": 10, "r": 1, "rot": 0, "level": 0}, {"code": "P4034", "c": 0, "r": 0, "rot": 0, "level": 0}, {"code": "P4134", "c": 0, "r": 0, "rot": 0, "level": 0}], "at": 9100000000000000.0}, {"id": "ledge-v3", "uid": "terraform", "name": "Ledge + lava test (v3)", "boards": [{"x": 0, "z": 0, "w": 6, "l": 6}], "blocks": [{"code": "P4001", "c": 0, "r": 0, "rot": 0, "level": 0}, {"code": "P4101", "c": 2, "r": 0, "rot": 0, "level": 0}, {"code": "P4101", "c": 3, "r": 0, "rot": 2, "level": 0}, {"code": "P4001", "c": 4, "r": 0, "rot": 2, "level": 0}, {"code": "P4001", "c": 0, "r": 2, "rot": 0, "level": 0}, {"code": "P4101", "c": 2, "r": 2, "rot": 0, "level": 0}, {"code": "P4101", "c": 3, "r": 2, "rot": 2, "level": 0}, {"code": "P4001", "c": 4, "r": 2, "rot": 2, "level": 0}, {"code": "P4001", "c": 0, "r": 4, "rot": 0, "level": 0}, {"code": "P4101", "c": 2, "r": 4, "rot": 0, "level": 0}, {"code": "P4101", "c": 3, "r": 4, "rot": 2, "level": 0}, {"code": "P4001", "c": 4, "r": 4, "rot": 2, "level": 0}], "at": 9000000000000003.0}, {"id": "lava-fall", "uid": "terraform", "name": "Lava fall (concept)", "boards": [{"x": 0, "z": 0, "w": 10, "l": 12}], "blocks": [{"code": "P4201", "c": 4, "r": 0, "rot": 0, "level": 0}, {"code": "P4011", "c": 2, "r": 11, "rot": 0, "level": 0}, {"code": "P4012", "c": 2, "r": 10, "rot": 0, "level": 0}, {"code": "P4003", "c": 2, "r": 8, "rot": 0, "level": 0}, {"code": "P4004", "c": 2, "r": 6, "rot": 0, "level": 0}, {"code": "P4002", "c": 2, "r": 4, "rot": 0, "level": 0}, {"code": "P4001", "c": 2, "r": 2, "rot": 0, "level": 0}, {"code": "P4006", "c": 6, "r": 10, "rot": 2, "level": 0}, {"code": "P4001", "c": 6, "r": 8, "rot": 2, "level": 0}, {"code": "P4002", "c": 6, "r": 6, "rot": 2, "level": 0}, {"code": "P4011", "c": 6, "r": 5, "rot": 2, "level": 0}, {"code": "P4012", "c": 6, "r": 4, "rot": 2, "level": 0}, {"code": "P4003", "c": 6, "r": 2, "rot": 2, "level": 0}, {"code": "P3001", "c": 2, "r": 0, "rot": 3, "level": 0}, {"code": "P3001", "c": 6, "r": 0, "rot": 3, "level": 0}, {"code": "P4101", "c": 4, "r": 10, "rot": 0, "level": 0}, {"code": "P4101", "c": 5, "r": 10, "rot": 2, "level": 0}, {"code": "P4101", "c": 4, "r": 8, "rot": 0, "level": 0}, {"code": "P4101", "c": 5, "r": 8, "rot": 2, "level": 0}, {"code": "P4101", "c": 4, "r": 6, "rot": 0, "level": 0}, {"code": "P4101", "c": 5, "r": 6, "rot": 2, "level": 0}, {"code": "P4101", "c": 4, "r": 4, "rot": 0, "level": 0}, {"code": "P4101", "c": 5, "r": 4, "rot": 2, "level": 0}, {"code": "P4101", "c": 4, "r": 2, "rot": 0, "level": 0}, {"code": "P4101", "c": 5, "r": 2, "rot": 2, "level": 0}, {"code": "P2010", "c": 0, "r": 10, "rot": 0, "level": 0}, {"code": "P2010", "c": 8, "r": 10, "rot": 0, "level": 0}, {"code": "P2010", "c": 0, "r": 8, "rot": 0, "level": 0}, {"code": "P2010", "c": 8, "r": 8, "rot": 0, "level": 0}, {"code": "P2010", "c": 0, "r": 6, "rot": 0, "level": 0}, {"code": "P2010", "c": 8, "r": 6, "rot": 0, "level": 0}, {"code": "P2010", "c": 0, "r": 4, "rot": 0, "level": 0}, {"code": "P2010", "c": 8, "r": 4, "rot": 0, "level": 0}, {"code": "P2010", "c": 0, "r": 2, "rot": 0, "level": 0}, {"code": "P2010", "c": 8, "r": 2, "rot": 0, "level": 0}, {"code": "P2010", "c": 0, "r": 0, "rot": 0, "level": 0}, {"code": "P2010", "c": 8, "r": 0, "rot": 0, "level": 0}], "at": 9000000000000001.0}, {"id": "lava-channel", "uid": "terraform", "name": "Wide lava channel (concept)", "boards": [{"x": 0, "z": 0, "w": 12, "l": 12}], "blocks": [{"code": "P2010", "c": 0, "r": 10, "rot": 0, "level": 0}, {"code": "P4001", "c": 2, "r": 10, "rot": 0, "level": 0}, {"code": "P4101", "c": 4, "r": 10, "rot": 0, "level": 0}, {"code": "P4114", "c": 5, "r": 10, "rot": 0, "level": 0}, {"code": "P4101", "c": 7, "r": 10, "rot": 2, "level": 0}, {"code": "P4004", "c": 8, "r": 10, "rot": 2, "level": 0}, {"code": "P2010", "c": 10, "r": 10, "rot": 0, "level": 0}, {"code": "P2010", "c": 0, "r": 8, "rot": 0, "level": 0}, {"code": "P4002", "c": 2, "r": 8, "rot": 0, "level": 0}, {"code": "P4101", "c": 4, "r": 8, "rot": 0, "level": 0}, {"code": "P4114", "c": 5, "r": 8, "rot": 0, "level": 0}, {"code": "P4101", "c": 7, "r": 8, "rot": 2, "level": 0}, {"code": "P4002", "c": 8, "r": 8, "rot": 2, "level": 0}, {"code": "P2010", "c": 10, "r": 8, "rot": 0, "level": 0}, {"code": "P2010", "c": 0, "r": 6, "rot": 0, "level": 0}, {"code": "P4003", "c": 2, "r": 6, "rot": 0, "level": 0}, {"code": "P4101", "c": 4, "r": 6, "rot": 0, "level": 0}, {"code": "P4114", "c": 5, "r": 6, "rot": 0, "level": 0}, {"code": "P4101", "c": 7, "r": 6, "rot": 2, "level": 0}, {"code": "P4006", "c": 8, "r": 6, "rot": 2, "level": 0}, {"code": "P2010", "c": 10, "r": 6, "rot": 0, "level": 0}, {"code": "P2010", "c": 0, "r": 4, "rot": 0, "level": 0}, {"code": "P4004", "c": 2, "r": 4, "rot": 0, "level": 0}, {"code": "P4101", "c": 4, "r": 4, "rot": 0, "level": 0}, {"code": "P4114", "c": 5, "r": 4, "rot": 0, "level": 0}, {"code": "P4101", "c": 7, "r": 4, "rot": 2, "level": 0}, {"code": "P4001", "c": 8, "r": 4, "rot": 2, "level": 0}, {"code": "P2010", "c": 10, "r": 4, "rot": 0, "level": 0}, {"code": "P2010", "c": 0, "r": 2, "rot": 0, "level": 0}, {"code": "P4002", "c": 2, "r": 2, "rot": 0, "level": 0}, {"code": "P4101", "c": 4, "r": 2, "rot": 0, "level": 0}, {"code": "P4114", "c": 5, "r": 2, "rot": 0, "level": 0}, {"code": "P4101", "c": 7, "r": 2, "rot": 2, "level": 0}, {"code": "P4002", "c": 8, "r": 2, "rot": 2, "level": 0}, {"code": "P2010", "c": 10, "r": 2, "rot": 0, "level": 0}, {"code": "P2010", "c": 0, "r": 0, "rot": 0, "level": 0}, {"code": "P4006", "c": 2, "r": 0, "rot": 0, "level": 0}, {"code": "P4101", "c": 4, "r": 0, "rot": 0, "level": 0}, {"code": "P4114", "c": 5, "r": 0, "rot": 0, "level": 0}, {"code": "P4101", "c": 7, "r": 0, "rot": 2, "level": 0}, {"code": "P4003", "c": 8, "r": 0, "rot": 2, "level": 0}, {"code": "P2010", "c": 10, "r": 0, "rot": 0, "level": 0}], "at": 9000000000000000.0}];
+names.terraform = 'Terraform';
+async function renderDesigns(){
+  const q = $('ds-q').value.trim().toLowerCase();
+  const tab = DS.tab;
+  let list = tab === 'mine' ? (DS.db ? DS.mine : Object.entries(localMine()).map(([id, d]) => ({ id, ...d }))) : [...BUILTIN, ...DS.shared];
+  if (tab === 'browse' && DS.user){
+    const ids = [...new Set(list.map(d => d.uid))].filter(i => i !== 'terraform');
+    try { const ps = await DS.user.profiles(ids); ids.forEach(i => names[i] = (ps[i] && ps[i].name) || (i === DS.uid ? 'You' : 'Someone')); names.terraform = 'Terraform'; } catch {}
+  }
+  const hit = d => !q || [d.name, ...(d.blocks || []).map(b => b.code), names[d.uid] || ''].join(' ').toLowerCase().includes(q);
+  list = list.filter(hit).sort((a, b) => (b.at || 0) - (a.at || 0));
+  if (tab === 'browse' && !DS.db) note('Browsing shared designs needs you signed in on the live page.');
+  else if (tab === 'mine' && !DS.db) note('Saved on this device only.');
+  else if (tab === 'browse') note('Designs people have shared. Loading one replaces your current board.');
+  else note('Only you can see these. Share one to put it in Browse.');
+  const sharedIds = new Set(DS.shared.filter(x => x.uid === DS.uid).map(x => x.id));
+  $('ds-list').innerHTML = list.length ? list.map(d => {
+    const key = `${tab}|${d.uid || ''}|${d.id}`;
+    const by = tab === 'browse' ? ` · by ${esc(names[d.uid] || 'Someone')}` : '';
+    const acts = [`<button class="go" type="button" data-act="load" data-key="${esc(key)}">${DS.armed === key ? 'Replace board?' : 'Load'}</button>`];
+    if (tab === 'mine'){
+      if (DS.db && DS.owner) acts.push(`<button type="button" data-act="banner" data-key="${esc(key)}" title="Show this build in the home page banner">Use on home banner</button>`);
+      if (DS.db) acts.push(`<button type="button" data-act="share" data-key="${esc(key)}" aria-pressed="${sharedIds.has(d.id)}">${sharedIds.has(d.id) ? 'Shared' : 'Share'}</button>`);
+      acts.push(`<button class="warn" type="button" data-act="del" data-key="${esc(key)}">${DS.armed === 'del' + key ? 'Delete?' : 'Delete'}</button>`);
+    } else if (d.uid !== 'terraform' && (d.uid === DS.uid || DS.owner)){
+      acts.push(`<button class="warn" type="button" data-act="unshare" data-key="${esc(key)}">Remove</button>`);
+    }
+    return `<li><b>${esc(d.name || 'Untitled map')}</b><span class="meta">${esc(summary(d))}${by}</span><span class="acts">${acts.join('')}</span></li>`;
+  }).join('') : `<li class="empty">${q ? 'No designs match that search.' : tab === 'mine' ? 'Nothing saved yet. Name your map at the top and press Save.' : 'No shared designs yet. Share one from My designs.'}</li>`;
+}
+function findByKey(key){
+  const [tab, uid, id] = key.split('|');
+  if (tab === 'mine') return DS.db ? DS.mine.find(d => d.id === id) : { id, ...localMine()[id] };
+  return BUILTIN.find(d => d.uid === uid && d.id === id) || DS.shared.find(d => d.uid === uid && d.id === id);
+}
+$('ds-list').addEventListener('click', async e => {
+  const btn = e.target.closest('button[data-act]'); if (!btn) return;
+  const key = btn.dataset.key, act = btn.dataset.act, d = findByKey(key); if (!d) return;
+  if (act === 'load'){
+    if (blocks.length && DS.armed !== key){ DS.armed = key; renderDesigns(); return; }
+    DS.armed = null; applyMap(d); $('designs').close(); toast(`Loaded "${d.name}"`, 'info');
+  } else if (act === 'del'){
+    if (DS.armed !== 'del' + key){ DS.armed = 'del' + key; renderDesigns(); return; }
+    DS.armed = null;
+    try {
+      if (DS.db){ await DS.db.collection('data/users/' + DS.uid).doc(d.id).delete(); if (DS.shared.some(x => x.uid === DS.uid && x.id === d.id)) await shareDesign(d.id, d, false); }
+      else { const m = localMine(); delete m[d.id]; store.set('tf-designs', m); renderDesigns(); }
+      toast(`Removed "${d.name}"`, 'info');
+    } catch { toast('Could not delete right now.'); }
+  } else if (act === 'share'){
+    const on = btn.getAttribute('aria-pressed') !== 'true';
+    try { await shareDesign(d.id, d, on); toast(on ? `Shared "${d.name}" to Browse` : `"${d.name}" is private again`, 'info'); }
+    catch { toast('Could not change sharing right now.'); }
+  } else if (act === 'banner'){
+    try {
+      await DS.db.doc('showcase/banner').set({ name:d.name, boards:d.boards || [], blocks:d.blocks || [], at:Date.now() });
+      toast(`"${d.name}" now builds in the home page banner`, 'info');
+    } catch { toast('Could not set the banner right now.'); }
+  } else if (act === 'unshare'){
+    try {
+      if (d.uid === DS.uid) await shareDesign(d.id, d, false);
+      else { const ref = DS.db.doc('gallery/' + d.uid); const cur = await ref.get(); if (cur.exists){ const b = structuredClone(cur.data()); delete b.designs[d.id]; await ref.set(b); } }
+      toast(`Removed "${d.name}" from Browse`, 'info');
+    } catch { toast('Could not remove it right now.'); }
+  }
+});
+function setTab(t){ DS.tab = t; DS.armed = null; $('ds-mine').setAttribute('aria-selected', t === 'mine'); $('ds-browse').setAttribute('aria-selected', t === 'browse'); renderDesigns(); }
+$('ds-mine').onclick = () => setTab('mine');
+$('ds-browse').onclick = () => setTab('browse');
+$('ds-q').addEventListener('input', () => { DS.armed = null; renderDesigns(); });
+$('ds-close').onclick = () => $('designs').close();
+$('designs').addEventListener('click', e => { if (e.target === $('designs')) $('designs').close(); });
+$('designs-btn').onclick = async () => { $('designs').showModal(); renderDesigns(); await dsReady; watchDesigns(); renderDesigns(); };
+$('save-btn').onclick = saveDesign;
+
+// what a first-time visitor sees: half a cave, all on level 1 and all cave pieces, every piece placed through the Studio's own check (14 Nov 2026)
+const EXAMPLE = { name:'Starter: half-built cave', W:12, L:8, boards:[{ x:0, z:0, w:12, l:8 }], blocks:[{"code": "P3002", "c": 0, "r": 2, "rot": 0, "level": 0}, {"code": "P3003", "c": 0, "r": 4, "rot": 0, "level": 0}, {"code": "P3002", "c": 2, "r": 0, "rot": 1, "level": 0}, {"code": "P3003", "c": 4, "r": 0, "rot": 1, "level": 0}, {"code": "P3004", "c": 6, "r": 0, "rot": 1, "level": 0}, {"code": "P3011", "c": 0, "r": 0, "rot": 0, "level": 0}, {"code": "P3013", "c": 0, "r": 6, "rot": 2, "level": 0}, {"code": "P3013", "c": 8, "r": 0, "rot": 1, "level": 0}, {"code": "P3009", "c": 5, "r": 4, "rot": 0, "level": 0}]};
+
+/* ---------- guide + tips (14 Nov 2026) ----------
+   The guide opens by itself the first time this device uses the Studio (it can be skipped), and again from the Guide button.
+   Tips pop up once each, the first time someone reaches that part of the Studio, unless they turn tips off. */
+const fine = matchMedia('(pointer:fine)').matches;
+const GUIDE = [
+  { v:'look', at:'#stage', t:'Welcome to the Studio', li:[
+      'Plan a Terraform map here, piece by piece, before you build it on the table. This starter cave is half built for you to finish.',
+      '<b>Look around:</b> drag to orbit, scroll to zoom, or use the zoom slider.',
+      'Right-drag slides the view. The move button on the left, or <kbd>M</kbd>, makes a left drag slide it instead.',
+      'Lost? The target button under the zoom (or <kbd>F</kbd>) brings the whole map back into view.'],
+    touch:'Touch: one finger orbits, pinch to zoom, two fingers slide.' },
+  { v:'place', at:'.dock', t:'Place tiles', li:[
+      'Pick a range at the bottom (Castles, Caves and so on); its tiles are grouped by type. Pick a tile, then click a square to put it there. Each square is 5 ft.',
+      'Press <kbd>R</kbd> to turn it before you place it. Keep clicking to place more; <kbd>Esc</kbd> lets go.',
+      'Or click a square first, then pick a tile, or drag a tile card straight onto the board.',
+      'Green means it fits. Red shows why not, so you can turn or drag it until it does.'],
+    touch:'Touch: tap a square to preview the tile, then tap again (or press Place) to put it down.' },
+  { v:'edit', at:'#stage', t:'Change a placed tile', li:[
+      '<b>Click</b> a tile to select it. <b>Click again</b> to turn it 90° (even with another tile ready to place).',
+      '<b>Drag</b> it to move it. Drag it off the board to remove it.',
+      '<b>Double-click</b> to pick up a copy, then click where it goes.',
+      '<kbd>Delete</kbd> removes the selected tile.',
+      'While a tile is selected, tiles marked <b>Fits</b> in the tray can go right beside it.'] },
+  { v:'levels', at:'#lv-btns', t:'Build up in levels', li:[
+      'Pick the level you’re working on with the numbers on the left, or keys <kbd>1</kbd> to <kbd>4</kbd>.',
+      'Tiles drop onto whatever is below them, so every square needs support. Half-height tiles can stack two to a level.',
+      'Tiles on other levels are locked while you work, so you can’t knock them by accident.'] },
+  { v:'remove', at:'#g-tiles', t:'Remove, undo and look', li:[
+      '<kbd>E</kbd> (the bin) turns on remove mode: click tiles to take them away.',
+      '<kbd>Ctrl</kbd> + <kbd>Z</kbd> (or the undo arrow) undoes, one step at a time. Clear empties the board, and undo brings it back.',
+      '<kbd>V</kbd> (the eye) is view mode: just look, with nothing changing by accident.'] },
+  { v:'boards', at:'#m-boards', t:'Boards', li:[
+      'Press <kbd>B</kbd> or Boards on the left. <b>+ Add a board</b> (in the bar at the top, or the + on the left) adds one: 6 × 8, 8 × 12 or 12 × 16 squares.',
+      'A new board has to clip onto another board’s edge. Green means it clips on here.',
+      'Drag a board or use the arrow keys to slide it, <kbd>R</kbd> turns it, <kbd>Delete</kbd> removes an empty one.',
+      '<kbd>T</kbd> or Back to tiles takes you back to building.'] },
+  { v:'stock', at:'.stockseg', t:'Your pieces and the cart', li:[
+      'Under each tile, + and − record how many you own. My stock then shows only what you have, with how many are left.',
+      'This map lists every piece on the board and how many you’re missing.',
+      'Add only missing to cart, or add every tile. The shop opens with the Kickstarter.'] },
+  { v:'save', at:'.savebar', t:'Save your maps', li:[
+      'Name the map at the top, then Save.',
+      'Designs opens your saved maps, and Browse shows ready-made ones to load and build on.',
+      'Your current map is also kept on this device, so it’s here when you come back.'] },
+  { keys:true, t:'Shortcuts' },
+];
+const KEYS = [['Drag','Orbit the view'],['Scroll','Zoom'],['R','Turn the tile (or board)'],['Esc','Let go of the tile'],['Click, click','Select, then turn a placed tile'],['Double-click','Copy a placed tile'],['Delete','Remove the selected tile or board'],['1 – 4','Working level'],['E','Remove mode'],['Ctrl + Z','Undo'],['V','View mode'],['M','Left drag slides instead of orbits'],['B / T','Boards / tiles'],['+ / −','Zoom in / out'],['F','Reset the view']];
+let gStep = 0;
+function guideBody(){
+  const g = GUIDE[gStep];
+  const body = g.keys
+    ? `<h3>${g.t}</h3><div class="gd-keys">${KEYS.map(([k, d]) => `<span>${k.split(' / ').map(x => x.split(' + ').map(y => /^(Drag|Scroll|Click, click|Double-click)$/.test(y) ? `<b>${y}</b>` : `<kbd>${y}</kbd>`).join(' + ')).join(' / ')}</span><span>${d}</span>`).join('')}</div>
+       <p class="touch">You can open this guide again any time with the Guide button at the top.</p>`
+    : `<div class="gd-vid"><video src="tut/${g.v}.mp4" autoplay muted loop playsinline preload="auto" aria-label="Short clip: ${g.t}"></video></div>
+       <div><h3>${g.t}</h3><ul>${g.li.map(x => `<li>${x}</li>`).join('')}</ul>${g.touch && !fine ? `<p class="touch">${g.touch}</p>` : ''}</div>`;
+  $('gd-body').innerHTML = body; $('gd-body').classList.toggle('keys', !!g.keys);
+  $('gd-count').textContent = `${gStep + 1} / ${GUIDE.length}`;
+  $('gd-dots').innerHTML = GUIDE.map((x, i) => `<button type="button" aria-label="Step ${i + 1}: ${x.t}" ${i === gStep ? 'aria-current="step"' : ''} data-gs="${i}"></button>`).join('');
+  $('gd-back').hidden = gStep === 0;
+  $('gd-next').textContent = gStep === GUIDE.length - 1 ? 'Start building' : 'Next';
+  $('gd-skip').textContent = gStep === GUIDE.length - 1 ? 'Close' : 'Skip guide';
+}
+// each step sits beside the part of the page it's about, joined to it by a line, with the rest of the page dimmed
+function placeGuide(){
+  if ($('gd-layer').hidden) return;
+  const g = GUIDE[gStep], card = $('guide'), spot = $('gd-spot'), vw = innerWidth, vh = innerHeight, M = 12, gap = 34;
+  const narrow = vw < 760, cw = narrow ? vw - 16 : Math.min(440, vw - 2 * M); card.style.width = cw + 'px';
+  const ch = card.offsetHeight, el = g.at && [...document.querySelectorAll(g.at)].find(e => e.offsetParent !== null);
+  const line = (on, a, b) => { const ln = $('gd-ln'), dot = $('gd-dot'); ln.style.display = dot.style.display = on ? '' : 'none';
+    if (on){ ln.setAttribute('x1', a[0]); ln.setAttribute('y1', a[1]); ln.setAttribute('x2', b[0]); ln.setAttribute('y2', b[1]); dot.setAttribute('cx', b[0]); dot.setAttribute('cy', b[1]); } };
+  if (!el){ spot.className = 'gd-spot none'; card.style.left = (vw - cw) / 2 + 'px'; card.style.top = Math.max(M, (vh - ch) / 2) + 'px'; line(false); return; }
+  const r = el.getBoundingClientRect(), T = { l:r.left - 5, t:r.top - 5, r:r.right + 5, b:r.bottom + 5 };
+  spot.className = 'gd-spot'; Object.assign(spot.style, { left:T.l + 'px', top:T.t + 'px', width:(T.r - T.l) + 'px', height:(T.b - T.t) + 'px' });
+  const cy = y => Math.min(Math.max(M, y), vh - M - ch), cx = x => Math.min(Math.max(M, x), vw - M - cw);
+  const fits = ([x, y]) => x >= M - 0.5 && y >= M - 0.5 && x + cw <= vw - M + 0.5 && y + ch <= vh - M + 0.5;
+  const clear = ([x, y]) => x >= T.r || x + cw <= T.l || y >= T.b || y + ch <= T.t;
+  let pos;
+  if (narrow) pos = [8, (T.t + T.b) / 2 < vh / 2 ? Math.max(M, vh - ch - 10) : 10];
+  else pos = [[T.r + gap, cy(T.t)], [T.l - gap - cw, cy(T.t)], [cx(T.l), T.t - gap - ch], [cx(T.l), T.b + gap]].find(p => fits(p) && clear(p))
+          || [cx(T.r - cw - 24), cy(T.t + 24)];                       // a big area (the 3D view): sit inside it, top right
+  card.style.left = pos[0] + 'px'; card.style.top = pos[1] + 'px';
+  const C = { l:pos[0], t:pos[1], r:pos[0] + cw, b:pos[1] + ch }, inside = !clear(pos);
+  const near = (R, [x, y]) => [Math.min(Math.max(x, R.l), R.r), Math.min(Math.max(y, R.t), R.b)];
+  const tc = [(T.l + T.r) / 2, (T.t + T.b) / 2], cc = [(C.l + C.r) / 2, (C.t + C.b) / 2];
+  if (inside){ const b = [Math.min(tc[0], C.l - 60), tc[1] + 40]; line(true, [C.l, Math.min(Math.max(b[1], C.t + 20), C.b - 20)], b); }
+  else { const b = near(T, cc); line(true, near(C, b), b); }
+}
+function openGuide(at = 0){
+  gStep = at; hideTip(); dropPending && dropPending();
+  $('gd-layer').hidden = false; guideBody(); placeGuide(); $('gd-next').focus();
+}
+function closeGuide(){ store.set('tf-guide-seen', 1); $('gd-layer').hidden = true; $('gd-body').innerHTML = ''; $('guide-btn').focus(); }
+const guideOpen = () => !$('gd-layer').hidden;
+$('guide-btn').onclick = () => openGuide(0);
+$('gd-skip').onclick = closeGuide;
+$('gd-next').onclick = () => { if (gStep < GUIDE.length - 1){ gStep++; guideBody(); placeGuide(); } else closeGuide(); };
+$('gd-back').onclick = () => { if (gStep > 0){ gStep--; guideBody(); placeGuide(); } };
+$('gd-dots').addEventListener('click', e => { const b = e.target.closest('[data-gs]'); if (b){ gStep = +b.dataset.gs; guideBody(); placeGuide(); } });
+$('gd-layer').addEventListener('keydown', e => { e.stopPropagation(); if (e.key === 'ArrowRight') $('gd-next').click(); if (e.key === 'ArrowLeft') $('gd-back').click(); if (e.key === 'Escape') closeGuide(); });
+addEventListener('resize', () => placeGuide());
+
+const TIPS = {
+  pick: fine ? 'Press R to turn the tile before you place it. Keep clicking to place more, and Esc lets go.' : 'Tap a square to preview, then tap again to place. The turn button on the left turns it first.',
+  placed: fine ? 'Placed. Click it again to turn it, drag to move it, or double-click to copy it.' : 'Placed. Tap it again to turn it, or drag to move it.',
+  red: 'Red means it doesn’t fit there yet. Turn it or drag it somewhere it fits; it won’t be kept until it does.',
+  level: 'Tiles on this level sit on whatever is below them, so every square needs support. Other levels are locked while you work here.',
+  erase: fine ? 'Remove mode: click tiles to take them away. Ctrl + Z brings them back, and E turns remove mode off.' : 'Remove mode: tap tiles to take them away. Undo brings them back.',
+  view: 'View mode: look around freely, nothing on the map changes. Turn it off to keep building.',
+  boards: fine ? 'Boards: + Add a board (top bar) adds a board that clips onto an edge. Drag or use the arrow keys to slide one, and R turns it. T takes you back to tiles.' : 'Boards: + Add a board (top bar) adds a board that clips onto an edge. Drag a board to slide it.',
+  fluid: 'This switch shows the river as lava or water. It’s the same pieces either way.',
+  fits: 'Tiles marked Fits in the tray below can go right beside the tile you\u2019ve selected, in at least one turn and spot. It checks they physically fit, so lava only shows where it can tuck under the ledge.',
+  stock: 'My stock shows only the pieces you’ve said you own (use + under a tile in Store), with how many are left.',
+};
+let tipT = 0;
+const tipsSeen = () => store.get('tf-tips') || {};
+function tip(id){
+  if (!TIPS[id] || guideOpen() || !store.get('tf-guide-seen')) return;
+  const seen = tipsSeen(); if (seen.off || seen[id]) return;
+  seen[id] = 1; store.set('tf-tips', seen);
+  $('tip-text').textContent = TIPS[id]; $('tip').hidden = false;
+  clearTimeout(tipT); tipT = setTimeout(hideTip, 14000);
+}
+function hideTip(){ clearTimeout(tipT); $('tip').hidden = true; }
+$('tip-ok').onclick = hideTip;
+$('tip-off').onclick = () => { const s = tipsSeen(); s.off = 1; store.set('tf-tips', s); hideTip(); toast('Tips are off. The Guide button still has everything.', 'info'); };
+
+try {
+  MODELS = await (await fetch('models.json?v=20261114-1740')).json();
+  try { MODELS = MODELS.concat(await (await fetch('models-lava.json?v=20261114-1740')).json()); } catch {}
+  MODELS.forEach(m => BY[m.code] = m);
+  for (const m of MODELS){ geos[m.code] = makeGeo(m, await decode(m.data)); try { const ps = geos[m.code].getAttribute('position').array; SHADOW[m.code] = shadowOf(ps); if (m.kind === 'shelf' || m.kind === 'fluid') COLS[m.code] = columnsOf(ps); } catch {} }
+  await thumbs();
+  const saved = store.get('tf-studio-map');
+  applyMap((saved && saved.blocks) ? saved : EXAMPLE, true);
+  resize(); frame();
+  renderPalette(); renderCart(); changed(); idleHint();
+  $('status').hidden = true;
+  if (!store.get('tf-guide-seen')) setTimeout(() => openGuide(0), 400);
+} catch (err){
+  console.error(err);
+  $('status').textContent = 'Studio needs a recent browser with WebGL.';
+}
+</script>
+</body>
+</html>
