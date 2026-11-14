@@ -313,7 +313,7 @@ kbd{display:inline-block;min-width:1.6em;padding:1px 6px;border-radius:6px;borde
 <div class="app">
   <header class="top">
     <a class="back" href="/" aria-label="Back to Terraform home">&larr; <img class="logo-d" src="../img/logo/terraform-symbol-2tier-white.png" alt=""><img class="logo-l" src="../img/logo/terraform-symbol-2tier-black.png" alt=""><span>Terraform</span></a>
-    <h1>Studio</h1><span class="hud" title="Studio version" style="color:var(--muted);font-size:.6rem;margin-left:-6px">v 20261115-0200</span>
+    <h1>Studio</h1><span class="hud" title="Studio version" style="color:var(--muted);font-size:.6rem;margin-left:-6px">v 20261115-0210</span>
     <div class="name"><label for="map-name" class="hud" hidden>Map name</label><input id="map-name" value="Untitled map" aria-label="Map name"></div>
     <div class="savebar" role="group" aria-label="Save and browse designs">
       <button class="pill" id="save-btn" type="button" title="Save this design"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h8V3M8 21v-7h8v7"/></svg><span class="lbl">Save</span></button>
@@ -904,6 +904,8 @@ function check(m, c, r, ro, lv){
     for (const [x,z] of cs) if ((base > 0 && occF.has(key(base-1,x,z))) || (m.kind !== 'shelf' && occF.has(key(base,x,z))))
       return { ok:false, why:'Tiles can’t stand on lava.', lvl:at };
     for (let h = base; h < base + t; h++) if (cs.some(([x,z]) => occ.has(key(h,x,z)))) return { ok:false, why:'Something is already there.', lvl:at };
+    // overhangs don't stack: a riverbed piece can't sit on another riverbed piece (15 Nov 2026)
+    if (m.kind === 'shelf' && base > 0) for (const [x,z] of cs){ const id = occ.get(key(base-1,x,z)); if (id && BY[blocks.find(b => b.id === id).code].kind === 'shelf') return { ok:false, why:'Overhangs can’t stack on other overhangs.', lvl:at }; }
   }
   const cl = clashes(m, c, r, ro, base);
   if (cl) return { ok:false, why: cl === 'ledge' ? (m.kind === 'fluid' ? 'That lava piece doesn’t fit under this ledge: it runs into the rock.' : 'That ledge doesn’t fit over this lava: the rock runs into it.') : 'It overlaps another tile.', lvl:at };
@@ -2109,7 +2111,7 @@ $('tip-off').onclick = () => { const s = tipsSeen(); s.off = 1; store.set('tf-ti
 
 try {
   MODELS = await (await fetch('models.json?v=20261114-1740')).json();
-  try { MODELS = MODELS.concat(await (await fetch('models-lava.json?v=20261115-0200')).json()); } catch {}
+  try { MODELS = MODELS.concat(await (await fetch('models-lava.json?v=20261115-0210')).json()); } catch {}
   MODELS.forEach(m => BY[m.code] = m);
   for (const m of MODELS){ geos[m.code] = makeGeo(m, await decode(m.data)); try { const ps = geos[m.code].getAttribute('position').array; SHADOW[m.code] = shadowOf(ps); if (m.kind === 'shelf' || m.kind === 'fluid') COLS[m.code] = columnsOf(ps); } catch {} }
   await thumbs();
