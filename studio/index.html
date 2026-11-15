@@ -549,7 +549,7 @@ const store = {
   get(k){ try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
   set(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
 };
-const VER = '20261115-1300';
+const VER = '20261115-1330';
 /* ---------- keyboard shortcuts, rebindable (15 Nov 2026) ---------- */
 const KEY_DEFAULT = { turn:'r', erase:'e', view:'v', move:'m', boards:'b', tiles:'t', frame:'f', zin:'=', zout:'-', del:'delete' };
 const KEY_ALIAS = { zin:['+'], zout:['_'], del:['backspace'] };          // extra keys that also work while the default is kept
