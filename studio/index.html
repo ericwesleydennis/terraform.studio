@@ -592,7 +592,7 @@ const store = {
   get(k){ try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
   set(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
 };
-const VER = '20261117-2330';
+const VER = '20261118-0015';
 /* ---------- keyboard shortcuts, rebindable (15 Nov 2026) ---------- */
 const KEY_DEFAULT = { turn:'r', erase:'e', select:'s', view:'v', move:'m', boards:'b', tiles:'t', frame:'f', zin:'=', zout:'-', del:'delete' };
 const KEY_ALIAS = { zin:['+'], zout:['_'], del:['backspace'] };          // extra keys that also work while the default is kept
@@ -1118,7 +1118,7 @@ function checkAcc(m, c, r, ro, lv, h45){
   const L = MAXL, lvl = Math.floor(lv), hs = holesOf(m, c, r, ro);       // not tied to the working level: it finds the top of whatever is under each socket
   if (hs.some(([x,z]) => !(inBoard(x-1,z-1) || inBoard(x,z-1) || inBoard(x-1,z) || inBoard(x,z)))) return { ok:false, why:'Off the edge of the board.', lvl };
   // a jetty deck only has the sockets it really has (its socket points): an angled piece's cut corner has none (17 Nov 2026)
-  const realSock = (b, px, pz) => { const m = BY[b.code], sk = m.socks || m.posts; return !m.deck || !sk || ptsOf(sk, m, b.c, b.r, b.rot).some(([u, v]) => u === px && v === pz); };
+  const realSock = (b, px, pz) => { const m = BY[b.code], sk = m.socks || m.posts; if (m.float) return false; return !m.deck || !sk || ptsOf(sk, m, b.c, b.r, b.rot).some(([u, v]) => u === px && v === pz); };
   const solidTop = (x, z, px, pz) => { if (!inBoard(x, z)) return -1; const s = surf(x, z, L); if (s <= 0) return 0; const id = occ.get(key(s-1, x, z)), b = id && blocks.find(q => q.id === id);
     return b && !isFluid(b.code) ? (realSock(b, px, pz) ? s : -2) : 0; };
   // the board's own socket counts too (16 Nov 2026): used when nothing taller is beside it, all four squares round it are on the board,
@@ -1134,12 +1134,24 @@ function checkAcc(m, c, r, ro, lv, h45){
   const cl = clashes(m, c, r, ro, base, h45); if (cl) return { ok:false, why:'It runs into something next to it.', lvl:at };
   return { ok:true, why:`Fits, in ${hs.length === 1 ? 'the socket' : hs.length + ' sockets'} ${base === 0 ? 'in the board' : `on top of the ${base % 2 ? 'half-height ' : ''}tile`}.`, lvl:at };
 }
+// a floating accessory (the boat, 17 Nov 2026): every square it covers has water or lava (not sand) and nothing over it
+function checkFloat(m, c, r, ro){
+  const cs = cellsOf(m, c, r, ro), t = tallOf(m);
+  if (cs.some(([x,z]) => !inBoard(x, z))) return { ok:false, why:'Off the edge of the board.', lvl:0 };
+  const wet = ([x,z]) => { const id = occF.get(key(0,x,z)), b = id && blocks.find(q => q.id === id); return b && !BY[b.code].sand; };
+  if (!cs.every(wet)) return { ok:false, why:`Boats float: every square under it needs ${fluidMode === 'water' ? 'water' : 'lava'}.`, lvl:0 };
+  for (let h = 0; h < t + 1; h++) if (cs.some(([x,z]) => occ.has(key(h,x,z)))) return { ok:false, why:'Something is in the way: a boat needs nothing over its squares.', lvl:0 };
+  return { ok:true, why:'Floats here.', lvl:0 };
+}
 function check(m, c, r, ro, lv, h45){            // h45: a one-socket accessory turned the extra 45 degrees
+  if (m.float) return checkFloat(m, c, r, ro);
   if (m.acc && m.holes && m.holes.length) return checkAcc(m, c, r, ro, lv, h45 && turns45(m));
   const cs = cellsOf(m, c, r, ro), L = Math.floor(lv), lvl = L;
   if (cs.some(([x,z]) => !inBoard(x, z))) return { ok:false, why:'Off the edge of the board.', lvl };
   const fl = m.kind === 'fluid' || m.kind === 'insert';
   const t = tallOf(m), tops = cs.map(([x,z]) => fl ? surfUnder(x, z, L) : surf(x, z, L)), base = Math.max(...tops);
+  if (cs.some(([x,z]) => { const id = occ.get(key(Math.max(base-1,0),x,z)), b = id && blocks.find(q => q.id === id); return b && BY[b.code].float; }))
+    return { ok:false, why: fl ? 'A boat is floating there.' : 'Nothing stands on a boat.', lvl };
   if (base >= 2*L + 2) return { ok:false, why:'Something is already there.', lvl };
   if (L > 0 && base < 2*L - 1) return { ok:false, why:`Needs support: every square must sit on a level ${L} tile.`, lvl };
   if (tops.some(v => v !== base)) return { ok:false, why:'Uneven: its squares would sit at different heights.', lvl };
@@ -1189,7 +1201,7 @@ function addBlock(b, record=true){
   scene.add(mesh); meshes.set(b.id, mesh);
   blocks.push(b);
   const om = isFluid(b.code) ? occF : occ;
-  if (m.acc) holesOf(m, b.c, b.r, b.rot).forEach(([x,z]) => occH.set(key(hb(b),x,z), b.id));
+  if (m.acc && !m.float) holesOf(m, b.c, b.r, b.rot).forEach(([x,z]) => occH.set(key(hb(b),x,z), b.id));
   else for (let l = hb(b); l < hb(b) + tallOf(m); l++) cellsOf(m, b.c, b.r, b.rot).forEach(([x,z]) => om.set(key(l,x,z), b.id));
   if (record){ undo.push({ op:'add', b }); }
   changed();
@@ -1199,7 +1211,7 @@ function removeBlock(id, record=true){
   scene.remove(meshes.get(id)); meshes.delete(id);
   blocks = blocks.filter(x => x.id !== id);
   const om = isFluid(b.code) ? occF : occ;
-  if (BY[b.code].acc) holesOf(BY[b.code], b.c, b.r, b.rot).forEach(([x,z]) => occH.delete(key(hb(b),x,z)));
+  if (BY[b.code].acc && !BY[b.code].float) holesOf(BY[b.code], b.c, b.r, b.rot).forEach(([x,z]) => occH.delete(key(hb(b),x,z)));
   else for (let l = hb(b); l < hb(b) + tallOf(BY[b.code]); l++) cellsOf(BY[b.code], b.c, b.r, b.rot).forEach(([x,z]) => om.delete(key(l,x,z)));
   if (record) undo.push({ op:'remove', b });
   if (picked === id) picked = null;
