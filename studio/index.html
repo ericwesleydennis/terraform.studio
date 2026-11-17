@@ -592,7 +592,7 @@ const store = {
   get(k){ try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
   set(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
 };
-const VER = '20261117-1800';
+const VER = '20261117-2330';
 /* ---------- keyboard shortcuts, rebindable (15 Nov 2026) ---------- */
 const KEY_DEFAULT = { turn:'r', erase:'e', select:'s', view:'v', move:'m', boards:'b', tiles:'t', frame:'f', zin:'=', zout:'-', del:'delete' };
 const KEY_ALIAS = { zin:['+'], zout:['_'], del:['backspace'] };          // extra keys that also work while the default is kept
@@ -1576,11 +1576,11 @@ function setView(v){
   viewSpin(v);
   hideGhost(); refreshLevels(); idleHint();
 }
-// view mode shows the model off (17 Nov 2026): the camera pulls back 15% and circles the model, one full turn every 36 s.
+// view mode shows the model off (17 Nov 2026): the camera pulls back 25% and circles the model, one full turn every 36 s.
 // The model never moves. Dragging still turns the view; the circling carries on from wherever you let go. Leaving restores the zoom.
 // The turn is applied straight to the camera by elapsed time, not through the view's easing, so it is exactly 10 degrees a second
 // on any device and stops the moment you leave. It pauses while you drag the view.
-const SPIN_SECS = 36, SPIN_BACK = 1.15;   // turns about UPY, the vertical axis
+const SPIN_SECS = 36, SPIN_BACK = 1.25;   // turns about UPY, the vertical axis
 let spinning = false, spinHeld = false;
 controls.addEventListener('start', () => { spinHeld = true; }); controls.addEventListener('end', () => { spinHeld = false; });
 function viewSpin(on){
