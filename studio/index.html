@@ -1,7 +1,6 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta name="robots" content="noindex">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Terraform Studio</title>
@@ -171,7 +170,19 @@ kbd{display:inline-block;min-width:1.6em;padding:1px 6px;border-radius:6px;borde
 .tool:disabled{opacity:.35;cursor:default}
 .tool svg{width:22px;height:22px}
 .tool .n{position:absolute;right:3px;bottom:2px;font-size:.6rem;font-family:var(--font-hud);opacity:.75}
-.hint{position:absolute;left:50%;bottom:12px;transform:translateX(-50%);max-width:calc(100% - 24px);display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:12px;background:color-mix(in srgb,var(--surface) 94%,transparent);border:1px solid var(--line);font-size:.9rem;z-index:2}
+.hint[hidden]{display:none!important}
+.dock-grip{position:absolute;left:0;right:0;top:-7px;height:14px;display:grid;place-items:center;cursor:ns-resize;z-index:3;touch-action:none}
+.dock-grip span{width:44px;height:4px;border-radius:2px;background:var(--line);transition:background .15s}
+.dock-grip:hover span,.dock-grip:focus-visible span,.dock-grip.on span{background:var(--gold)}
+.dock-grip:focus-visible{outline:none}
+.dock.compact .own,.dock.compact .tagc,.dock.compact .sg-h{display:none!important}
+.dock.compact .card b{font-size:.72rem}.dock.compact .card span{display:none}
+body.viewing .top,body.viewing .dock,body.viewing .drawer,body.viewing .rail,body.viewing .zoom,body.viewing .hint,body.viewing .tip,body.viewing #movebar{display:none!important}
+body.viewing .app{grid-template-rows:minmax(0,1fr)!important}
+body.viewing .main{grid-template-columns:minmax(0,1fr)!important}
+.view-close{position:absolute;top:max(12px,env(safe-area-inset-top,0px));right:max(12px,env(safe-area-inset-right,0px));z-index:6;padding:10px 16px;min-height:44px;border-radius:999px;border:1px solid var(--line);background:color-mix(in srgb,var(--surface) 92%,transparent);color:var(--ink);font:600 .9rem var(--font-hud,inherit);cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.3)}
+.view-close[hidden]{display:none}.view-close:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
+.hint{cursor:pointer;position:absolute;left:50%;bottom:12px;transform:translateX(-50%);max-width:calc(100% - 24px);display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:12px;background:color-mix(in srgb,var(--surface) 94%,transparent);border:1px solid var(--line);font-size:.9rem;z-index:2}
 .hint.bad{border-color:var(--bad)}
 .hint.ok{border-color:var(--ok)}
 .hint button{border:0;border-radius:8px;padding:6px 12px;font-weight:800;cursor:pointer;background:var(--ok);color:#06210f}
@@ -193,8 +204,14 @@ kbd{display:inline-block;min-width:1.6em;padding:1px 6px;border-radius:6px;borde
 .toast:not([hidden]){animation:toastIn .26s cubic-bezier(.2,.8,.3,1.2)}
 @keyframes toastIn{from{opacity:0;transform:translate(-50%,-50%) scale(.9)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
 @media (prefers-reduced-motion: reduce){.toast:not([hidden]){animation:none}}
-.toast.info{background:var(--gold);color:var(--gold-ink)}
+.toast.info{background:var(--gold);color:var(--gold-ink);top:calc(var(--toast-top,12px));transform:translate(-50%,0);padding:8px 14px;font-weight:700;box-shadow:0 8px 20px rgba(0,0,0,.4)}
+.toast.info:not([hidden]){animation:toastTop .22s ease-out}
+@keyframes toastTop{from{opacity:0;transform:translate(-50%,-8px)}to{opacity:1;transform:translate(-50%,0)}}   /* notices sit at the top of the view, warnings stay central (16 Nov 2026) */
+@media (prefers-reduced-motion: reduce){.toast.info:not([hidden]){animation:none}}
+@media (max-width:700px){.toast.info{top:var(--toast-top,112px)}}   /* below the phone's tool row */
 .toast.out{opacity:0}
+.marq{position:absolute;z-index:5;border:1.5px dashed #60A5FA;background:rgba(96,165,250,.14);border-radius:3px;pointer-events:none}   /* the select box (16 Nov 2026) */
+body.selecting canvas{cursor:crosshair}
 
 /* drawer */
 .drawer{border-left:1px solid var(--line);background:var(--surface);display:flex;flex-direction:column;min-height:0}
@@ -244,7 +261,7 @@ kbd{display:inline-block;min-width:1.6em;padding:1px 6px;border-radius:6px;borde
 @media (prefers-reduced-motion: reduce){.drawer{transition:none}}
 
 /* palette dock */
-.dock{min-width:0;border-top:1px solid var(--line);background:var(--bg);padding:8px max(10px,env(safe-area-inset-right,0px)) 10px max(10px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:8px}
+.dock{position:relative;zoom:var(--dz,1);min-width:0;border-top:1px solid var(--line);background:var(--bg);padding:8px max(10px,env(safe-area-inset-right,0px)) 10px max(10px,env(safe-area-inset-left,0px));display:flex;flex-direction:column;gap:8px}
 .dtop{display:flex;gap:10px;align-items:center;min-width:0}
 .dtop .cats{flex:1;min-width:0}
 .stockseg{display:inline-flex;flex:none;border:1px solid var(--line);border-radius:999px;padding:2px;background:var(--surface)}
@@ -258,6 +275,12 @@ kbd{display:inline-block;min-width:1.6em;padding:1px 6px;border-radius:6px;borde
 .sg + .sg{margin-left:6px;padding-left:10px;border-left:1px solid var(--line)}
 .sg-h{flex:none;scroll-snap-align:start;writing-mode:vertical-rl;transform:rotate(180deg);text-align:center;font-family:var(--font-hud);font-size:.72rem;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--gold);padding:4px 0}
 .cw .card{scroll-snap-align:none}
+.cw{position:relative}
+.fav{position:absolute;top:56px;right:10px;width:28px;height:28px;display:grid;place-items:center;padding:0;border-radius:50%;border:1px solid var(--line);background:color-mix(in srgb,var(--surface) 82%,transparent);color:var(--muted);font-size:1rem;line-height:1;cursor:pointer}
+.fav[aria-pressed="true"]{color:var(--gold);border-color:var(--gold)}
+.fav:hover{color:var(--ink)}.fav:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+@media (max-width:560px){.fav{top:40px;right:8px}}
+.mb-fin{display:inline-flex;align-items:center;gap:6px;font-size:.8rem;color:var(--muted)}.mb-fin select{font:inherit;color:var(--ink);background:var(--surface);border:1px solid var(--line);border-radius:8px;padding:5px 6px;max-width:150px}
 .own{display:flex;align-items:center;justify-content:space-between;gap:4px;font-size:.7rem;color:var(--muted)}
 .own button{width:26px;height:24px;border-radius:7px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-weight:800;cursor:pointer;line-height:1}
 .own b{font-size:.72rem;color:var(--ink)}
@@ -318,6 +341,10 @@ kbd{display:inline-block;min-width:1.6em;padding:1px 6px;border-radius:6px;borde
 /* shortcuts panel */
 .keysdlg{width:min(460px,calc(100vw - 24px));max-height:calc(100vh - 40px);padding:0;border-radius:16px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
 .keysdlg::backdrop{background:rgba(0,0,0,.45)}
+.dd-check{display:flex;gap:10px;align-items:center;margin:4px 20px 14px;font-weight:600;cursor:pointer}
+.dd-check input{width:18px;height:18px;accent-color:#B9574F}
+.dd-go{background:#B9574F!important;color:#FFF5F3!important;border-color:#B9574F!important}
+.dd-go:disabled{opacity:.4;cursor:not-allowed}   /* delete a saved design: tick to confirm (16 Nov 2026) */
 .kd-head{display:flex;align-items:center;gap:10px;padding:14px 16px 6px}
 .kd-head h2{margin:0;flex:1;font-family:var(--font-display);font-weight:600;font-size:1.1rem;letter-spacing:.06em;text-transform:uppercase}
 .kd-x{border:0;background:transparent;color:var(--muted);font-size:1.5rem;line-height:1;cursor:pointer}
@@ -332,7 +359,8 @@ kbd{display:inline-block;min-width:1.6em;padding:1px 6px;border-radius:6px;borde
 /* 15 Nov 2026, laptops and up: ranges and types in two columns at the left of the tray (more height for the 3D view),
    and the panels and controls about 10% smaller. The 3D canvas itself is never scaled, so clicks stay exact. */
 @media (min-width:821px){
-  .top,.dock,.drawer,.hint,.tip,.toast{zoom:.9}
+  .top,.drawer,.hint,.tip,.toast{zoom:.9}
+  .dock{zoom:calc(.9 * var(--dz,1))}
   .main{grid-template-columns:minmax(0,1fr) 270px}
   .zoom{transform:scale(.9);transform-origin:100% 0}
   .dock{display:grid;grid-template-columns:auto auto minmax(0,1fr);column-gap:10px;align-items:stretch}
@@ -361,6 +389,7 @@ kbd{display:inline-block;min-width:1.6em;padding:1px 6px;border-radius:6px;borde
       <div class="setmenu" id="set-menu" role="menu" hidden>
         <button type="button" role="menuitem" id="set-guide">Guide<small>A short tour of the Studio</small></button>
         <button type="button" role="menuitem" id="set-keys">Shortcuts<small>See the keys, and change them</small></button>
+        <button type="button" role="menuitem" id="set-hints">Show hints again<small>Bring back the hints you've tapped away</small></button>
         <div class="setver hud" id="set-ver"></div>
       </div>
     </div>
@@ -394,6 +423,8 @@ kbd{display:inline-block;min-width:1.6em;padding:1px 6px;border-radius:6px;borde
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="6" width="12" height="12" rx="1.5"/><path d="M19 9v8M15 13h8"/></svg></button>
           <button class="tool" type="button" id="t-view" aria-pressed="false" aria-label="View mode (V)" title="View mode (V)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></button>
+          <button class="tool" type="button" id="t-select" aria-pressed="false" aria-label="Select: drag a box over tiles (S)" title="Select (S)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8V5a2 2 0 0 1 2-2h3M16 3h3a2 2 0 0 1 2 2v3M21 16v3a2 2 0 0 1-2 2h-3M8 21H5a2 2 0 0 1-2-2v-3" stroke-dasharray="0"/><path d="M10 10l9 4-4 1-1 4z" fill="currentColor" stroke-linejoin="round"/></svg></button>
           <button class="tool" type="button" id="t-move" aria-pressed="false" aria-label="One finger orbits the view. Tap to switch to moving the board (M)" title="Orbit / move (M)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="ico-orbit"><ellipse cx="12" cy="12" rx="9" ry="4"/><path d="M12 3v18"/><path d="M17 6l2 2-2 2"/></svg>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="ico-move" hidden><path d="M12 2v20M2 12h20M12 2l-3 3M12 2l3 3M12 22l-3-3M12 22l3-3M2 12l3-3M2 12l3 3M22 12l-3-3M22 12l-3 3"/></svg></button>
@@ -438,11 +469,14 @@ kbd{display:inline-block;min-width:1.6em;padding:1px 6px;border-radius:6px;borde
         <b id="mb-which">Board 1</b>
         <span class="seg"><button type="button" data-mv="-1,0" aria-label="Slide left">←</button><button type="button" data-mv="0,-1" aria-label="Slide up">↑</button><button type="button" data-mv="0,1" aria-label="Slide down">↓</button><button type="button" data-mv="1,0" aria-label="Slide right">→</button></span>
         <button type="button" id="mb-rot">⟳ 90°</button>
+        <label class="mb-fin" title="A preview of planned finishes. Boards ship as raw MDF.">Finish <select id="mb-fin" aria-label="Board finish (preview: boards ship as raw MDF)"></select></label>
         <button type="button" id="mb-add">+ Add a board</button>
         <button type="button" class="go" id="mb-done">Back to tiles</button>
       </div>
+      <button type="button" class="view-close" id="view-close" hidden aria-label="Close view mode (Esc)">✕ Close view</button>
       <div class="hint" id="hint" role="status"><span id="hint-text">Pick a tile below, then tap the board.</span><button type="button" id="place-btn" hidden>Place</button></div>
       <div class="toast" id="toast" hidden></div>
+      <div class="marq" id="marq" hidden></div>
       <div class="tip" id="tip" role="status" hidden><b>Tip</b><span id="tip-text"></span><div class="row"><button type="button" class="ok" id="tip-ok">Got it</button><button type="button" id="tip-off">No more tips</button></div></div>
     </div>
 
@@ -470,6 +504,12 @@ kbd{display:inline-block;min-width:1.6em;padding:1px 6px;border-radius:6px;borde
       <ul class="ds-list" id="ds-list"></ul>
     </dialog>
 
+    <dialog class="keysdlg deldlg" id="del-dlg" aria-labelledby="dd-title">
+      <div class="kd-head"><h2 id="dd-title">Delete this design?</h2><button class="kd-x" type="button" id="dd-x" aria-label="Cancel">&times;</button></div>
+      <p class="kd-note" id="dd-note"></p>
+      <label class="dd-check"><input type="checkbox" id="dd-sure"> <span>Yes, I’m sure. Delete it for good.</span></label>
+      <div class="kd-foot"><button type="button" class="btn ghost" id="dd-cancel">Cancel</button><button type="button" class="btn dd-go" id="dd-go" disabled>Delete</button></div>
+    </dialog>
     <dialog class="keysdlg" id="keys-dlg" aria-labelledby="kd-title">
       <div class="kd-head"><h2 id="kd-title">Shortcuts</h2><button class="kd-x" type="button" id="kd-close" aria-label="Close">&times;</button></div>
       <p class="kd-note" id="kd-note">Click a key to change it, then press the new key. Changes are kept on this device.</p>
@@ -508,6 +548,7 @@ kbd{display:inline-block;min-width:1.6em;padding:1px 6px;border-radius:6px;borde
   </div>
 
   <div class="dock">
+    <div class="dock-grip" id="dock-grip" role="separator" aria-orientation="horizontal" tabindex="0" aria-label="Resize the tile bar: drag, or use the up and down arrows" aria-valuemin="55" aria-valuemax="100" aria-valuenow="100" title="Drag to resize the tile bar (double-click to reset)"><span></span></div>
     <div class="dtop">
       <div class="stockseg" role="radiogroup" aria-label="Which pieces to show">
         <button type="button" role="radio" id="v-stock" aria-checked="false" title="Only the pieces you own, with how many are left">My stock</button>
@@ -542,16 +583,16 @@ kbd{display:inline-block;min-width:1.6em;padding:1px 6px;border-radius:6px;borde
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
-const P = 25, PITCH = 24.9, LV = 26.25, MAXL = 4, MIN = 4, MAX = 30;
+const P = 25, LV = 26.25, MAXL = 4, MIN = 4, MAX = 30;
 const $ = id => document.getElementById(id);
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 const store = {
   get(k){ try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
   set(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
 };
-const VER = '20261115-1330';
+const VER = '20261117-1415';
 /* ---------- keyboard shortcuts, rebindable (15 Nov 2026) ---------- */
-const KEY_DEFAULT = { turn:'r', erase:'e', view:'v', move:'m', boards:'b', tiles:'t', frame:'f', zin:'=', zout:'-', del:'delete' };
+const KEY_DEFAULT = { turn:'r', erase:'e', select:'s', view:'v', move:'m', boards:'b', tiles:'t', frame:'f', zin:'=', zout:'-', del:'delete' };
 const KEY_ALIAS = { zin:['+'], zout:['_'], del:['backspace'] };          // extra keys that also work while the default is kept
 const KEY_FIXED = ['escape', 'tab', 'enter', ' ', '1', '2', '3', '4', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright', 'shift', 'control', 'alt', 'meta', 'capslock'];
 let BIND = Object.assign({}, KEY_DEFAULT, store.get('tf-keys') || {});
@@ -561,29 +602,46 @@ function keyAct(k){
   for (const a in KEY_ALIAS){ if (BIND[a] === KEY_DEFAULT[a] && KEY_ALIAS[a].includes(k)) return a; }
   return null;
 }
-const fillKeys = (t, plain) => t.replace(/\{(turn|erase|view|move|boards|tiles|frame|zin|zout|del)\}/g, (_, a) => plain ? KN(a) : `<kbd>${KN(a)}</kbd>`);
+const fillKeys = (t, plain) => t.replace(/\{(turn|erase|select|view|move|boards|tiles|frame|zin|zout|del)\}/g, (_, a) => plain ? KN(a) : `<kbd>${KN(a)}</kbd>`);
 // fluid pieces (lava or water) have their own tab; the land pieces they run past are the Riverbed set (14 Nov 2026)
 const FLUIDTAB = 'Lava / River';
 // the tray is one tab per range (P1000 interiors, P2000 castles, P3000 caves, P4000 riverbed and its lava), each split into
 // labelled groups (14 Nov 2026)
 const codeNum = m => parseInt(m.code.slice(1), 10) || 0;
-const catOf = m => (m.kind === 'fluid' || m.kind === 'insert') ? FLUIDTAB
-  : { 1:'Interiors', 2:'Castles', 3:'Caves', 4:'Riverbed' }[Math.floor(codeNum(m) / 1000)] || 'Misc';
-const TABS = ['Interiors', 'Castles', 'Caves', 'Riverbed', FLUIDTAB, 'Misc'];
+const catOf = m => codeNum(m) >= 5000 && codeNum(m) < 6000 ? 'Coasts' : (m.kind === 'fluid' || m.kind === 'insert') ? FLUIDTAB
+  : { 1:'Interiors', 2:'Castles', 3:'Caves', 4:'Riverbed', 5:'Coasts' }[Math.floor(codeNum(m) / 1000)] || 'Misc';
+const TABS = ['Interiors', 'Castles', 'Caves', 'Riverbed', FLUIDTAB, 'Coasts', 'Misc'];
 function groupOf(m){
   const n = codeNum(m), c = catOf(m);
   if (c === 'Interiors') return [1001, 1010, 1011, 1012].includes(n) ? 'Base' : [1002, 1013, 1014].includes(n) ? 'Walls' : [1004, 1005, 1015, 1016].includes(n) ? 'Corners' : [1006, 1007].includes(n) ? 'Corridors' : n === 1003 ? 'Doors' : [1008, 1009].includes(n) ? 'Diagonal' : 'Misc';
   if (c === 'Castles') return n <= 2009 ? 'Base' : n <= 2019 ? 'Half height' : n <= 2029 ? 'Double height' : n <= 2049 ? 'Round' : n <= 2059 ? 'Angled' : 'Misc';
   if (c === 'Caves') return (n <= 3004 || n === 3009 || n === 3010) ? 'Base' : n <= 3008 ? 'Slopes' : n <= 3019 ? 'Corners' : 'Misc';
   if (c === 'Riverbed') return n <= 4019 ? 'Ledges' : n <= 4039 ? 'Corners & jogs' : n <= 4059 ? 'Stones' : 'Misc';
-  if (c === FLUIDTAB) return n <= 4109 ? 'Edges' : n <= 4119 ? 'Slabs' : n <= 4129 ? 'Corners' : n <= 4139 ? 'Angled' : 'Misc';
+  if (c === 'Coasts') return n <= 5099 ? 'Shore' : (n >= 5111 && n <= 5113) ? 'Landing' : n <= 5199 ? 'Jetty' : 'Accessories';   // P5110 and P5114 are run pieces, not landings (17 Nov 2026)
+  if (c === FLUIDTAB) return n <= 4109 ? 'Edges' : n <= 4119 ? 'Slabs' : n <= 4129 ? 'Corners' : n <= 4139 ? 'Angled' : n <= 4149 ? 'Shallows' : n <= 4159 ? 'Jetty water' : 'Misc';
   return 'Misc';
 }
-const GROUP_ORDER = { Interiors:['Base', 'Walls', 'Corners', 'Corridors', 'Doors', 'Diagonal', 'Misc'], Castles:['Base', 'Half height', 'Double height', 'Round', 'Angled', 'Misc'], Caves:['Base', 'Slopes', 'Corners', 'Misc'],
-  Riverbed:['Ledges', 'Corners & jogs', 'Stones', 'Misc'], [FLUIDTAB]:['Edges', 'Slabs', 'Corners', 'Angled', 'Misc'] };
+const GROUP_ORDER = { Coasts:['Shore', 'Jetty', 'Landing', 'Accessories'], Interiors:['Base', 'Walls', 'Corners', 'Corridors', 'Doors', 'Diagonal', 'Misc'], Castles:['Base', 'Half height', 'Double height', 'Round', 'Angled', 'Misc'], Caves:['Base', 'Slopes', 'Corners', 'Misc'],
+  Riverbed:['Ledges', 'Corners & jogs', 'Stones', 'Misc'], [FLUIDTAB]:['Edges', 'Slabs', 'Corners', 'Angled', 'Shallows', 'Jetty water', 'Misc'] };
 
 /* ---------- state ---------- */
-let W = 12, L = 8, level = 0, rot = 0, view = false, erase = false;
+let W = 12, L = 8, level = 0, rot = 0, view = false, erase = false, selMode = false, multi = new Set(), hush = 0;
+// single-socket accessories (lamp posts, stumps) turn in 45 degree steps (16 Nov 2026): the extra half step is `t45` on a block, `half` while placing,
+// and it turns about the socket rather than the middle of the square, so the spigot stays in its hole
+let half = 0;
+const turns45 = m => !!(m && m.acc && m.holes && m.holes.length === 1);
+const UPY = new THREE.Vector3(0, 1, 0), tmpV = new THREE.Vector3();
+const oneSocket = m => !!(m && m.acc && m.holes && m.holes.length === 1);
+// one step of turn for a one-socket accessory: 45 degrees, about its socket, so it never moves off it (16 Nov 2026)
+function stepInPlace(m, c, r, ro, h45){
+  const s = (ro*2 + (h45 ? 1 : 0) + 1) % 8, nro = s >> 1, [hx, hz] = holesOf(m, c, r, ro)[0], [dx, dz] = holesOf(m, 0, 0, nro)[0];
+  return { c:hx - dx, r:hz - dz, rot:nro, t45:s & 1 };
+}
+function spin45(obj, m, c, r, ro){
+  const [hx, hz] = holesOf(m, c, r, ro)[0];
+  tmpV.copy(obj.position).sub(new THREE.Vector3(hx*P, obj.position.y, hz*P)).applyAxisAngle(UPY, -Math.PI/4);
+  obj.position.set(hx*P + tmpV.x, obj.position.y, hz*P + tmpV.z); obj.rotation.y -= Math.PI/4;
+}
 let boards = [{ x:0, z:0, w:12, l:8 }];   // board plates in squares; tiles sit on their union
 let selBoard = 0, arrange = false, flashBoard = false, flashT = 0;
 const PRESETS = { '6x8':[6,8], '8x12':[8,12], '12x16':[12,16] };
@@ -614,6 +672,7 @@ let blocks = [];              // {id, code, c, r, rot, level}
 let nextId = 1;
 const undo = [];
 const occ = new Map();        // "l,c,r" -> id
+const occH = new Map();       // jetty accessories take sockets, not squares: "l,gx,gz" (grid points) -> id, so several can share a square (16 Nov 2026)
 const occF = new Map();       // lava has its own layer: it may tuck under a ledge's shelf in the ledge's own squares (14 Nov 2026)
 const key = (l,c,r) => `${l},${c},${r}`;
 
@@ -635,6 +694,29 @@ scene.add(sun); scene.add(sun.target);
 
 const boardGroup = new THREE.Group(); scene.add(boardGroup);
 const boardMat = new THREE.MeshStandardMaterial({ roughness:0.95 });
+// board finishes (16 Nov 2026): boards ship as raw MDF; the others preview pre-coloured and patterned slabs. Saved with each board as `fin`.
+const FINISH = { mdf:{ name:'Raw MDF (standard)' }, grass:{ name:'Green', col:0x6f8f4e }, sand:{ name:'Sand', col:0xd9c48f }, stone:{ name:'Stone grey', col:0x8c8f93 },
+  water:{ name:'Sea blue', col:0x3f7fa6 }, basalt:{ name:'Basalt', col:0x3a3536 }, snow:{ name:'Snow', col:0xe4e9ee },
+  flags:{ name:'Flagstones (pattern)', col:0x8c8f93, pat:'flags' }, turf:{ name:'Grass (pattern)', col:0x6f8f4e, pat:'turf' }, planks:{ name:'Timber (pattern)', col:0xa9824f, pat:'planks' } };
+const finCache = {};
+function patternCanvas(kind){            // one board square, drawn to tile
+  const c = document.createElement('canvas'); c.width = c.height = 128; const g = c.getContext('2d'); let s = 7; const rnd = () => (s = (s*16807) % 2147483647) / 2147483647;
+  if (kind === 'flags'){ g.fillStyle = '#5f6266'; g.fillRect(0,0,128,128);
+    for (let i = 0; i < 2; i++) for (let j = 0; j < 2; j++){ const v = 128 + Math.round(rnd()*36); g.fillStyle = `rgb(${v},${v+2},${v+5})`; g.beginPath(); g.roundRect(i*64 + 3, j*64 + 3, 58, 58, 7); g.fill(); } }
+  else if (kind === 'turf'){ g.fillStyle = '#6f8f4e'; g.fillRect(0,0,128,128);
+    for (let n = 0; n < 900; n++){ const v = rnd(); g.fillStyle = v < .5 ? 'rgba(52,84,38,.55)' : 'rgba(150,178,96,.5)'; g.fillRect(rnd()*128, rnd()*128, 2, 2 + rnd()*3); } }
+  else { g.fillStyle = '#6e5230'; g.fillRect(0,0,128,128);
+    for (let j = 0; j < 4; j++){ const v = Math.round(rnd()*24); g.fillStyle = `rgb(${160+v},${122+v},${74+v})`; g.fillRect(0, j*32 + 1.5, 128, 29); } }
+  return c;
+}
+function finishMats(bd){                 // [slab, holes, grid lines] for a board
+  const k = FINISH[bd.fin] ? bd.fin : 'mdf'; if (k === 'mdf') return [boardMat, holeMat, gridMat];
+  const f = FINISH[k], key = f.pat ? `${k}|${bd.w}|${bd.l}` : k; if (finCache[key]) return finCache[key];
+  const col = new THREE.Color(f.col), dark = col.getHSL({}).l < 0.4;
+  const slab = new THREE.MeshStandardMaterial({ color:f.pat ? 0xffffff : col, roughness:0.95 });
+  if (f.pat){ const t = new THREE.CanvasTexture(patternCanvas(f.pat)); t.wrapS = t.wrapT = THREE.RepeatWrapping; t.repeat.set(bd.w, bd.l); t.colorSpace = THREE.SRGBColorSpace; t.anisotropy = 4; slab.map = t; }
+  return finCache[key] = [slab, new THREE.MeshBasicMaterial({ color:col.clone().multiplyScalar(dark ? 0.45 : 0.5) }), new THREE.LineBasicMaterial({ color:dark ? col.clone().lerp(new THREE.Color(0xffffff), 0.28) : col.clone().multiplyScalar(0.62) })];
+}
 const holeMat = new THREE.MeshBasicMaterial();
 const gridMat = new THREE.LineBasicMaterial({ transparent:true, opacity:0.35 });
 const tileMat = new THREE.MeshStandardMaterial({ color:0x8a97d8, flatShading:true, roughness:0.6 });
@@ -649,13 +731,15 @@ function setFluidMats(){ const f = FLUIDS[fluidMode];
   fluidLower.color.setHex(f.lc); fluidLower.emissive.setHex(f.le); fluidLower.emissiveIntensity = f.lei; }
 setFluidMats();
 // names on screen: land pieces drop the 'Lava' prefix (they're the Riverbed set); fluid pieces say Lava or Water to match the toggle
-const nm = m => !m ? '' : (m.kind === 'fluid' || m.kind === 'insert') ? (fluidMode === 'water' ? m.name.replace(/^Lava Fall/, 'Waterfall').replace(/^Lava/, 'Water') : m.name)
+const nm = m => !m ? '' : m.sand ? m.name : (m.kind === 'fluid' || m.kind === 'insert') ? (fluidMode === 'water' ? m.name.replace(/^Lava Fall/, 'Waterfall').replace(/^Lava/, 'Water') : m.name)
   : /^Lava Fall$/.test(m.name) ? 'Fall Cliff' : m.name.replace(/^Lava /, '');
 const isFluid = code => !!(BY[code] && (BY[code].kind === 'fluid' || BY[code].kind === 'insert'));
 // tiles built on the rounded v3 standard carry smooth normals, so they get smooth-shaded materials
 const tileSmooth = new THREE.MeshStandardMaterial({ color:0x8a97d8, roughness:0.6 });
 const lowerSmooth = new THREE.MeshStandardMaterial({ color:0x6c78b8, roughness:0.7 });
-const matOf = (code, lower) => isFluid(code) ? (lower ? fluidLower : fluidMat) : (BY[code] && BY[code].smooth) ? (lower ? lowerSmooth : tileSmooth) : (lower ? lowerMat : tileMat);
+// sand (the Coast shore pieces) sits in the fluid layer so a jetty can pass over it, but it is always sand-coloured (16 Nov 2026)
+const sandMat = new THREE.MeshStandardMaterial({ color:0xdcc48e, roughness:0.95 }), sandLower = new THREE.MeshStandardMaterial({ color:0xb09a6c, roughness:0.95 });
+const matOf = (code, lower) => (BY[code] && BY[code].sand) ? (lower ? sandLower : sandMat) : isFluid(code) ? (lower ? fluidLower : fluidMat) : (BY[code] && BY[code].smooth) ? (lower ? lowerSmooth : tileSmooth) : (lower ? lowerMat : tileMat);
 const ghostMat = new THREE.MeshStandardMaterial({ color:0x4ade80, emissive:0x4ade80, emissiveIntensity:0.5, transparent:true, opacity:0.55, flatShading:true, depthWrite:false });
 const padMat = new THREE.MeshBasicMaterial({ color:0x4ade80, transparent:true, opacity:0.35, depthWrite:false, side:THREE.DoubleSide });
 const silMat = new THREE.MeshBasicMaterial({ transparent:true, opacity:0.10, depthWrite:false, side:THREE.DoubleSide });
@@ -682,9 +766,10 @@ function buildBoard(){
   const bb = bounds(); W = bb.w; L = bb.l;
   boards.forEach((bd, n) => {
     // each plate is drawn a hair short so the joins between boards read as seams
-    const slab = new THREE.Mesh(new THREE.BoxGeometry(bd.w*P + (boards.length > 1 ? -0.8 : 12), 6, bd.l*P + (boards.length > 1 ? -0.8 : 12)), boardMat);
+    const [slabMat, holeM, lineM] = finishMats(bd);
+    const slab = new THREE.Mesh(new THREE.BoxGeometry(bd.w*P + (boards.length > 1 ? -0.8 : 12), 6, bd.l*P + (boards.length > 1 ? -0.8 : 12)), slabMat);
     slab.position.set((bd.x + bd.w/2)*P, -3, (bd.z + bd.l/2)*P); slab.receiveShadow = true; boardGroup.add(slab);
-    const holes = new THREE.InstancedMesh(new THREE.CircleGeometry(3, 18), holeMat, (bd.w+1)*(bd.l+1));
+    const holes = new THREE.InstancedMesh(new THREE.CircleGeometry(3, 18), holeM, (bd.w+1)*(bd.l+1));
     const m = new THREE.Matrix4(), r = new THREE.Matrix4().makeRotationX(-Math.PI/2); let i = 0;
     for (let x=0;x<=bd.w;x++) for (let z=0;z<=bd.l;z++){ m.makeTranslation((bd.x+x)*P, 0.05, (bd.z+z)*P).multiply(r); holes.setMatrixAt(i++, m); }
     boardGroup.add(holes);
@@ -692,7 +777,7 @@ function buildBoard(){
     for (let x=0;x<=bd.w;x++) pts.push((bd.x+x)*P,0.1,Z0, (bd.x+x)*P,0.1,Z1);
     for (let z=0;z<=bd.l;z++) pts.push(X0,0.1,(bd.z+z)*P, X1,0.1,(bd.z+z)*P);
     const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.Float32BufferAttribute(pts,3));
-    boardGroup.add(new THREE.LineSegments(g, gridMat));
+    boardGroup.add(new THREE.LineSegments(g, lineM));
     if ((arrange || flashBoard) && n === selBoard){
       const o = new THREE.BufferGeometry().setFromPoints([[X0,Z0],[X1,Z0],[X1,Z1],[X0,Z1],[X0,Z0]].map(([x,z]) => new THREE.Vector3(x, 0.6, z)));
       boardGroup.add(new THREE.Line(o, new THREE.LineBasicMaterial({ color:0x3BD9B2 })));
@@ -707,6 +792,7 @@ function buildBoard(){
   if (silMesh){ scene.remove(silMesh); scene.remove(availMesh); }
   silMesh = new THREE.InstancedMesh(quad, silMat, bb.w*bb.l); availMesh = new THREE.InstancedMesh(quad, availMat, bb.w*bb.l);
   silMesh.frustumCulled = availMesh.frustumCulled = false;
+  silMesh.count = availMesh.count = 0;          // nothing until the level overlay fills them: unset copies sat at the grid origin as a white dot (16 Nov 2026)
   scene.add(silMesh); scene.add(availMesh);
   boardUI();
 }
@@ -715,6 +801,7 @@ function boardUI(){
   if (!$('movebar')) return;
   $('mb-which').textContent = boards.length > 1 ? `Board ${selBoard + 1} of ${boards.length} · ${boards[selBoard].w} × ${boards[selBoard].l}` : `Your board · ${boards[0].w} × ${boards[0].l}`;
   document.querySelectorAll('[data-mv]').forEach(b => b.disabled = boards.length < 2);
+  if ($('mb-fin')) $('mb-fin').value = FINISH[boards[selBoard].fin] ? boards[selBoard].fin : 'mdf';
 }
 function frame(){
   const bb = bounds(), s = Math.max(bb.w, bb.l) * P;
@@ -771,20 +858,48 @@ async function decode(b64){
   return new Uint8Array(await new Response(ds).arrayBuffer());
 }
 // geometry centred on its footprint, body base at y=0 (pegs dip 3.25 mm below)
+// two packings (17 Nov 2026): pk 1 is raw uint16 vertices in 0.01 mm then faces; pk 2 is 0.05 mm vertices and step-coded faces,
+// each column split into low and high bytes, which gzips to about half the size. Both come out as mm and face corners.
+function unpackMesh(m, bytes){
+  const nv = m.nv, nf = m.nf, q = new Float32Array(nv*3), idx = new Uint32Array(nf*3);
+  if ((m.pk || 1) === 1){
+    const u = new Uint16Array(bytes.buffer, bytes.byteOffset, nv*3); for (let i = 0; i < nv*3; i++) q[i] = u[i]/100;
+    idx.set(new Uint16Array(bytes.buffer, bytes.byteOffset + nv*6, nf*3)); return [q, idx];
+  }
+  let o = 0; const col = n => { const a = new Uint16Array(n); for (let i = 0; i < n; i++) a[i] = bytes[o+i] | (bytes[o+n+i] << 8); o += 2*n; return a; };
+  const X = col(nv), Y = col(nv), Z = col(nv), A = col(nf), B = col(nf), D = col(nf);
+  for (let i = 0; i < nv; i++){ q[i*3] = X[i]/20; q[i*3+1] = Y[i]/20; q[i*3+2] = Z[i]/20; }
+  let f0 = 0; for (let i = 0; i < nf; i++){ f0 = (f0 + A[i]) & 0xFFFF; idx[i*3] = f0; idx[i*3+1] = (f0 + B[i]) & 0xFFFF; idx[i*3+2] = (f0 + D[i]) & 0xFFFF; }
+  return [q, idx];
+}
 function makeGeo(m, bytes){
-  const q = new Uint16Array(bytes.buffer, bytes.byteOffset, m.nv*3);
-  const idx = new Uint16Array(bytes.buffer, bytes.byteOffset + m.nv*6, m.nf*3);
-  const cx = m.org[0] + m.cells[0]*PITCH/2, cy = m.org[1] + m.cells[1]*PITCH/2;
+  const [q, idx] = unpackMesh(m, bytes);
+  const cx = m.org[0] + m.cells[0]*P/2, cy = m.org[1] + m.cells[1]*P/2;   // every model centres on its 25 mm squares (the old 24.9 pitch went on 17 Nov 2026)
   if (m.smooth){                                   // shared vertices -> smooth normals, then unshared again for the footprint code
     const p = new Float32Array(m.nv*3);
-    for (let v=0; v<m.nv; v++){ p[v*3] = q[v*3]/100 - cx; p[v*3+1] = q[v*3+2]/100 - 3.25; p[v*3+2] = -(q[v*3+1]/100 - cy); }
-    const gi = new THREE.BufferGeometry(); gi.setAttribute('position', new THREE.BufferAttribute(p,3)); gi.setIndex(new THREE.BufferAttribute(new Uint32Array(idx),1));
-    gi.computeVertexNormals(); const g = gi.toNonIndexed(); g.computeBoundingSphere(); return g;
+    for (let v=0; v<m.nv; v++){ p[v*3] = q[v*3] - cx; p[v*3+1] = q[v*3+2] - 3.25; p[v*3+2] = -(q[v*3+1] - cy); }
+    const gi = new THREE.BufferGeometry(); gi.setAttribute('position', new THREE.BufferAttribute(p,3)); gi.setIndex(new THREE.BufferAttribute(idx,1));
+    gi.computeVertexNormals(); const g = gi.toNonIndexed();
+    // crease (pieces flagged crisp: jetty decks and accessories): where a face turns more than ~35 degrees from the smoothed normal (a sharp edge), use the face's own normal, so flat sides shade flat
+    if (m.crisp){ const P = g.getAttribute('position').array, N = g.getAttribute('normal').array;
+      for (let i = 0; i < P.length; i += 9){
+        const ux = P[i+3]-P[i], uy = P[i+4]-P[i+1], uz = P[i+5]-P[i+2], vx = P[i+6]-P[i], vy = P[i+7]-P[i+1], vz = P[i+8]-P[i+2];
+        let nx = uy*vz - uz*vy, ny = uz*vx - ux*vz, nz = ux*vy - uy*vx; const l = Math.hypot(nx, ny, nz) || 1; nx /= l; ny /= l; nz /= l;
+        for (let k = 0; k < 9; k += 3) if (N[i+k]*nx + N[i+k+1]*ny + N[i+k+2]*nz < 0.82){ N[i+k] = nx; N[i+k+1] = ny; N[i+k+2] = nz; }
+      } }
+    else { const P = g.getAttribute('position').array, N = g.getAttribute('normal').array;     // every other tile: a face lying in a flat side or a flat top shades flat (16 Nov 2026)
+      for (let i = 0; i < P.length; i += 9){
+        const ux = P[i+3]-P[i], uy = P[i+4]-P[i+1], uz = P[i+5]-P[i+2], vx = P[i+6]-P[i], vy = P[i+7]-P[i+1], vz = P[i+8]-P[i+2];
+        let nx = uy*vz - uz*vy, ny = uz*vx - ux*vz, nz = ux*vy - uy*vx; const l = Math.hypot(nx, ny, nz) || 1; nx /= l; ny /= l; nz /= l;
+        if (Math.max(Math.abs(nx), Math.abs(ny), Math.abs(nz)) > 0.9986)                       // within 3 degrees of an axis
+          for (let k = 0; k < 9; k += 3){ N[i+k] = nx; N[i+k+1] = ny; N[i+k+2] = nz; }
+      } }
+    g.computeBoundingSphere(); return g;
   }
   const pos = new Float32Array(m.nf*9);
   for (let f=0; f<m.nf; f++) for (let k=0;k<3;k++){
     const v = idx[f*3+k];
-    pos[f*9+k*3] = q[v*3]/100 - cx; pos[f*9+k*3+1] = q[v*3+2]/100 - 3.25; pos[f*9+k*3+2] = -(q[v*3+1]/100 - cy);
+    pos[f*9+k*3] = q[v*3] - cx; pos[f*9+k*3+1] = q[v*3+2] - 3.25; pos[f*9+k*3+2] = -(q[v*3+1] - cy);
   }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos,3)); g.computeVertexNormals();
   g.computeBoundingSphere();
@@ -888,7 +1003,16 @@ function columnsOf(pos){
   }
   return out;
 }
-function worldCols(code, c, r, ro){
+// a lamp or stump turned the extra 45 degrees (17 Nov 2026): its cells are turned about the socket, as spin45 turns the mesh
+function turn45(out, code, c, r, ro){
+  const [hx, hz] = holesOf(BY[code], c, r, ro)[0], px = hx*P/G, pz = hz*P/G, k = Math.SQRT1_2, res = new Map();
+  for (const [key0, iv] of out){ const [i, j] = key0.split(',').map(Number);
+    for (const [a, b] of [[0.25,0.25],[0.75,0.25],[0.25,0.75],[0.75,0.75]]){ const x = i + a - px, z = j + b - pz;
+      const nk = Math.floor(px + x*k - z*k) + ',' + Math.floor(pz + x*k + z*k); if (!res.has(nk)) res.set(nk, iv); } }
+  return res;
+}
+function worldCols(code, c, r, ro, h45){
+  if (h45 && turns45(BY[code])){ const k = `${code}|${c}|${r}|${ro}|45`; if (wcCache.has(k)) return wcCache.get(k); const base = worldCols(code, c, r, ro); if (!base) return null; const t = turn45(base, code, c, r, ro); wcCache.set(k, t); return t; }
   const k = `${code}|${c}|${r}|${ro}`; if (wcCache.has(k)) return wcCache.get(k);
   const cs = COLS[code]; if (!cs) return null;
   const [w, h] = foot(BY[code], ro), ox = Math.round((c + w/2)*P/G), oz = Math.round((r + h/2)*P/G), out = new Map();
@@ -896,16 +1020,41 @@ function worldCols(code, c, r, ro){
   if (wcCache.size > 4000) wcCache.clear();
   wcCache.set(k, out); return out;
 }
+// jetty posts and the water under them, exactly (16 Nov 2026): every grid point a post goes down through must be a notch in every water piece touching it.
+// Water pieces list their notches (grid points with no peg); sand is left out: the Landing's lip post is shaped to sit against Shore A.
+const keyPt = (x, z) => x + ',' + z;
+// each post is made of quarters, one per square round its grid point; a piece lists the quarters it carries as [i, j, a, b]: point, and the cell
+// (squares) that quarter stands in. A water piece is only blocked where a quarter stands in one of its own squares (16 Nov 2026)
+function postQuarters(m, c, r, ro){
+  return (m.postq || []).map(([i, j, a, b]) => { const [p] = ptsOf([[i, j]], m, c, r, ro), [q] = ptsOf([[a + 0.5, b + 0.5]], m, c, r, ro);
+    return [p[0], p[1], Math.floor(q[0]), Math.floor(q[1])]; });
+}
+function quarterKeys(skip){ const s = new Set(); for (const b of blocks) if (b !== skip && BY[b.code].postq) postQuarters(BY[b.code], b.c, b.r, b.rot).forEach(([x,z,u,v]) => s.add(`${x},${z}|${u},${v}`)); return s; }
+function notchKeys(m, c, r, ro){ return new Set(ptsOf(m.notches, m, c, r, ro).map(([x,z]) => keyPt(x, z))); }
+const blockedIn = (m, c, r, ro, qs) => { const nk = notchKeys(m, c, r, ro);      // a solid corner of one of its squares under a post quarter
+  return cellsOf(m, c, r, ro).some(([x,z]) => [[x,z],[x+1,z],[x,z+1],[x+1,z+1]].some(([px,pz]) => qs.has(`${px},${pz}|${x},${z}`) && !nk.has(keyPt(px, pz)))); };
+function postClash(m, c, r, ro){
+  if (m.kind === 'fluid' && !m.sand && blockedIn(m, c, r, ro, quarterKeys()))
+    return 'A jetty post comes down where this piece is solid. Turn it, or use a piece notched there.';
+  if (m.postq){
+    const qs = new Set(postQuarters(m, c, r, ro).map(([x,z,u,v]) => `${x},${z}|${u},${v}`));
+    for (const b of blocks){ const fm = BY[b.code]; if (fm.kind !== 'fluid' || fm.sand) continue;
+      if (blockedIn(fm, b.c, b.r, b.rot, qs)) return 'One of its posts would come down on solid water. The piece under it needs a notch there.'; }
+  }
+  return null;
+}
 // lava and a ledge collide where both are solid at the same height, above the board (pegs and holes left out), by more than print tolerance
-function solidClash(A, B){
+function solidClash(A, B, need = 2){        // need: overlapping columns before it counts. A jetty post is one column in each square it touches, so jetty checks use 1
   let n = 0;
   for (const [k, a] of A){ const b = B.get(k); if (!b) continue;
     hit: for (let i = 0; i < a.length; i += 2) for (let j = 0; j < b.length; j += 2){
       const lo = Math.max(a[i], b[j], 0.3), hi = Math.min(a[i+1], b[j+1]);
-      if (hi - lo > 0.3){ if (++n >= 2) return true; break hit; } } }
+      if (hi - lo > 0.3){ if (++n >= need) return true; break hit; } } }
   return false;
 }
-function worldShadow(code, c, r, ro){
+function worldShadow(code, c, r, ro, h45){
+  if (h45 && turns45(BY[code])){ const k = `${code}|${c}|${r}|${ro}|45`; if (wsCache.has(k)) return wsCache.get(k); const base = worldShadow(code, c, r, ro); if (!base) return null;
+    const t = new Set(turn45(new Map([...base].map(x => [x, 1])), code, c, r, ro).keys()); wsCache.set(k, t); return t; }
   const k = `${code}|${c}|${r}|${ro}`; if (wsCache.has(k)) return wsCache.get(k);
   const sh = SHADOW[code]; if (!sh) return null;
   const [w, h] = foot(BY[code], ro), ox = Math.round((c + w/2)*P/G), oz = Math.round((r + h/2)*P/G), out = new Set();
@@ -925,8 +1074,8 @@ const onLevel = (b, L) => hb(b) < 2*L + 2 && hb(b) + tallOf(BY[b.code]) > 2*L;
 function surf(x, z, L){ for (let h = 2*L + 1; h >= 0; h--) if (occ.has(key(h,x,z))) return h + 1; return 0; }
 // for lava: the same, but a ledge (shelf) above doesn't count - the lava goes in underneath it
 function surfUnder(x, z, L){ for (let h = 2*L + 1; h >= 0; h--){ const id = occ.get(key(h,x,z)); if (id && BY[blocks.find(b => b.id === id).code].kind !== 'shelf') return h + 1; } return 0; }
-function clashes(m, c, r, ro, lv){
-  const A = worldShadow(m.code, c, r, ro); if (!A) return false;
+function clashes(m, c, r, ro, lv, h45){
+  const A = worldShadow(m.code, c, r, ro, h45); if (!A) return false;
   for (const b of blocks){
     const t = tallOf(m), bt = tallOf(BY[b.code]);
     if (hb(b) + bt <= lv || lv + t <= hb(b) || Math.abs(b.c - c) > 9 || Math.abs(b.r - r) > 9) continue;
@@ -934,10 +1083,15 @@ function clashes(m, c, r, ro, lv){
     const flu = k => k === 'fluid' || k === 'insert';    // an insert (the lava fall curtain) sits in its fall's slot: same solid-against-solid test (15 Nov 2026)
     if ((flu(ka) && kb === 'shelf') || (ka === 'shelf' && flu(kb))){   // lava tucks under the shelf, but only where the ledge is hollow
       const CA = worldCols(m.code, c, r, ro), CB = worldCols(b.code, b.c, b.r, b.rot);
-      if (CA && CB && solidClash(CA, CB)) return 'ledge';
+      const dk = m.deck || BY[b.code].deck;
+      if (CA && CB && solidClash(CA, CB, dk ? 1 : 2)) return dk ? 'deck' : 'ledge';
       continue;
     }
-    const B = worldShadow(b.code, b.c, b.r, b.rot); if (!B) continue;
+    if (m.acc && BY[b.code].acc && hb(b) === lv){        // two accessories on the same deck: their real shapes, so a lamp arm passes over a fence rail (16 Nov 2026)
+      const CA = worldCols(m.code, c, r, ro, h45), CB = worldCols(b.code, b.c, b.r, b.rot, b.t45);
+      if (CA && CB){ if (solidClash(CA, CB, 1)) return true; continue; }
+    }
+    const B = worldShadow(b.code, b.c, b.r, b.rot, b.t45); if (!B) continue;
     // two grid cells (a few mm²) or more is a real clash; between two river pieces (rock that reaches past its squares) one is enough,
     // so the overhangs of an L of stones are caught (14 Nov 2026)
     const lim = (ka === 'shelf' && kb === 'shelf') ? 1 : 2;
@@ -950,7 +1104,29 @@ function clashes(m, c, r, ro, lv){
 function cellsOf(m, c, r, ro){ const [w,h] = foot(m, ro); const out = []; for (let i=0;i<w;i++) for (let j=0;j<h;j++) out.push([c+i, r+j]); return out; }
 // lv is the working level; the tile drops onto whatever is under it: the board, a full level,
 // or the top of a half-height tile (on this level or the one below). res.lvl is where it ends up.
-function check(m, c, r, ro, lv){
+// accessories stand on what's round their sockets, not on the square they cover: a fence corner at the inside of an L covers the empty square (16 Nov 2026)
+function checkAcc(m, c, r, ro, lv, h45){
+  const L = MAXL, lvl = Math.floor(lv), hs = holesOf(m, c, r, ro);       // not tied to the working level: it finds the top of whatever is under each socket
+  if (hs.some(([x,z]) => !(inBoard(x-1,z-1) || inBoard(x,z-1) || inBoard(x-1,z) || inBoard(x,z)))) return { ok:false, why:'Off the edge of the board.', lvl };
+  // a jetty deck only has the sockets it really has (its socket points): an angled piece's cut corner has none (17 Nov 2026)
+  const realSock = (b, px, pz) => { const m = BY[b.code], sk = m.socks || m.posts; return !m.deck || !sk || ptsOf(sk, m, b.c, b.r, b.rot).some(([u, v]) => u === px && v === pz); };
+  const solidTop = (x, z, px, pz) => { if (!inBoard(x, z)) return -1; const s = surf(x, z, L); if (s <= 0) return 0; const id = occ.get(key(s-1, x, z)), b = id && blocks.find(q => q.id === id);
+    return b && !isFluid(b.code) ? (realSock(b, px, pz) ? s : -2) : 0; };
+  // the board's own socket counts too (16 Nov 2026): used when nothing taller is beside it, all four squares round it are on the board,
+  // and none of them has water, lava or sand over it (those cover the socket)
+  const boardOk = (x, z) => [[x-1,z-1],[x,z-1],[x-1,z],[x,z]].every(([u,v]) => inBoard(u, v) && surf(u, v, L) === 0 && !occF.has(key(0, u, v)));
+  const tops = hs.map(([x,z]) => { const t = Math.max(solidTop(x-1,z-1,x,z), solidTop(x,z-1,x,z), solidTop(x-1,z,x,z), solidTop(x,z,x,z)); return t > 0 ? t : boardOk(x, z) ? 0 : -1; });
+  const none = 'Accessories plug into the sockets on a jetty deck, a tile top or the board. There’s no free socket here.';
+  if (tops.some(v => v < 0)) return { ok:false, why:none, lvl };
+  const base = Math.max(...tops), at = base/2;
+  if (tops.some(v => v !== base)) return { ok:false, why:'Uneven: its sockets are at different heights.', lvl:at };
+  if (base + tallOf(m) > 2*MAXL) return { ok:false, why:'Too tall here.', lvl:at };
+  if (hs.some(([x,z]) => occH.has(key(base,x,z)))) return { ok:false, why:'That socket already has something in it. Turn it, or pick another corner.', lvl:at };
+  const cl = clashes(m, c, r, ro, base, h45); if (cl) return { ok:false, why:'It runs into something next to it.', lvl:at };
+  return { ok:true, why:`Fits, in ${hs.length === 1 ? 'the socket' : hs.length + ' sockets'} ${base === 0 ? 'in the board' : `on top of the ${base % 2 ? 'half-height ' : ''}tile`}.`, lvl:at };
+}
+function check(m, c, r, ro, lv, h45){            // h45: a one-socket accessory turned the extra 45 degrees
+  if (m.acc && m.holes && m.holes.length) return checkAcc(m, c, r, ro, lv, h45 && turns45(m));
   const cs = cellsOf(m, c, r, ro), L = Math.floor(lv), lvl = L;
   if (cs.some(([x,z]) => !inBoard(x, z))) return { ok:false, why:'Off the edge of the board.', lvl };
   const fl = m.kind === 'fluid' || m.kind === 'insert';
@@ -965,15 +1141,31 @@ function check(m, c, r, ro, lv){
       if (occF.has(key(h,x,z))) return { ok:false, why:'Something is already there.', lvl:at };
       const id = occ.get(key(h,x,z)); if (id && BY[blocks.find(b => b.id === id).code].kind !== 'shelf') return { ok:false, why:'Something is already there.', lvl:at }; }
   } else {
-    for (const [x,z] of cs) if ((base > 0 && occF.has(key(base-1,x,z))) || (m.kind !== 'shelf' && occF.has(key(base,x,z))))
-      return { ok:false, why:'Tiles can’t stand on lava.', lvl:at };
+    for (const [x,z] of cs) if ((base > 0 && occF.has(key(base-1,x,z)) && !occ.has(key(base-1,x,z))) || (m.kind !== 'shelf' && occF.has(key(base,x,z))))
+      { const fid = occF.get(key(base > 0 && occF.has(key(base-1,x,z)) ? base-1 : base, x, z)), fb = fid && blocks.find(b => b.id === fid);
+        return { ok:false, why: m.acc ? 'Accessories plug into the sockets on a jetty deck or a tile top. There’s no socket here.'
+          : fb && BY[fb.code].sand ? 'Nothing stands on the sand: it has no sockets on top.' : `Tiles can’t stand on ${fluidMode === 'water' ? 'water' : 'lava'}.`, lvl:at }; }
     for (let h = base; h < base + t; h++) if (cs.some(([x,z]) => occ.has(key(h,x,z)))) return { ok:false, why:'Something is already there.', lvl:at };
+    if (m.acc){                          // accessories plug into sockets: every one needs a jetty deck or tile top under it, never sand, water or the bare board
+      const socketed = ([x,z]) => base > 0 && [[x-1,z-1],[x,z-1],[x-1,z],[x,z]].some(([u,v]) => { const id = occ.get(key(base-1,u,v)); return id && !isFluid(blocks.find(b => b.id === id).code); });
+      if (!holesOf(m, c, r, ro).every(socketed)) return { ok:false, why:'Accessories plug into the sockets on a jetty deck or a tile top. There’s no socket here.', lvl:at };
+    }
+    if (m.acc && holesOf(m, c, r, ro).some(([x,z]) => occH.has(key(base,x,z)))) return { ok:false, why:'That socket already has something in it. Turn it, or pick another corner.', lvl:at };
     // overhangs don't stack: a riverbed piece can't sit on another riverbed piece (15 Nov 2026)
     if (m.kind === 'shelf' && base > 0) for (const [x,z] of cs){ const id = occ.get(key(base-1,x,z)); if (id && BY[blocks.find(b => b.id === id).code].kind === 'shelf') return { ok:false, why:'Overhangs can’t stack on other overhangs.', lvl:at }; }
   }
+  { const pc = (base === 0 || m.kind === 'fluid') ? postClash(m, c, r, ro) : null; if (pc) return { ok:false, why:pc, lvl:at }; }
   const cl = clashes(m, c, r, ro, base);
+  if (cl === 'deck') return { ok:false, why: m.deck ? 'The jetty doesn’t fit over that piece: a post or the deck runs into it.' : 'That piece doesn’t fit under the jetty here: a post runs into it. Use a notched piece.', lvl:at };
   if (cl) return { ok:false, why: cl === 'ledge' ? (m.kind === 'fluid' ? 'That lava piece doesn’t fit under this ledge: it runs into the rock.' : 'That ledge doesn’t fit over this lava: the rock runs into it.') : 'It overlaps another tile.', lvl:at };
   return { ok:true, why:base % 2 ? 'Fits, on top of the half-height tile. ' : 'Fits. ', lvl:at };
+}
+// the grid points (sockets) an accessory plugs into, for a placement: its holes are stored in squares from its cell corner in the model's frame
+function holesOf(m, c, r, ro){ return ptsOf(m.holes, m, c, r, ro); }
+// grid points listed in a model's frame (squares from its cell corner), placed and turned like the model
+function ptsOf(list, m, c, r, ro){
+  return (list || []).map(([i, j]) => { let x = i, z = m.cells[1] - j, w = m.cells[0], h = m.cells[1];
+    for (let n = 0; n < ro; n++){ [x, z] = [h - z, x]; [w, h] = [h, w]; } return [c + x, r + z]; });
 }
 const meshes = new Map(); // id -> mesh
 function addBlock(b, record=true){
@@ -982,12 +1174,14 @@ function addBlock(b, record=true){
   const [w,h] = foot(m, b.rot);
   mesh.position.set((b.c + w/2)*P, b.level*LV, (b.r + h/2)*P);
   mesh.rotation.y = -b.rot * Math.PI/2;
+  if (b.t45 && turns45(m)) spin45(mesh, m, b.c, b.r, b.rot);
   mesh.castShadow = mesh.receiveShadow = true; mesh.userData.id = b.id;
   if (m.insert && geos[m.insert]){ const ins = new THREE.Mesh(geos[m.insert], fluidMat); ins.castShadow = true; mesh.add(ins); }   // the fall's fluid insert
   scene.add(mesh); meshes.set(b.id, mesh);
   blocks.push(b);
   const om = isFluid(b.code) ? occF : occ;
-  for (let l = hb(b); l < hb(b) + tallOf(m); l++) cellsOf(m, b.c, b.r, b.rot).forEach(([x,z]) => om.set(key(l,x,z), b.id));
+  if (m.acc) holesOf(m, b.c, b.r, b.rot).forEach(([x,z]) => occH.set(key(hb(b),x,z), b.id));
+  else for (let l = hb(b); l < hb(b) + tallOf(m); l++) cellsOf(m, b.c, b.r, b.rot).forEach(([x,z]) => om.set(key(l,x,z), b.id));
   if (record){ undo.push({ op:'add', b }); }
   changed();
 }
@@ -996,36 +1190,48 @@ function removeBlock(id, record=true){
   scene.remove(meshes.get(id)); meshes.delete(id);
   blocks = blocks.filter(x => x.id !== id);
   const om = isFluid(b.code) ? occF : occ;
-  for (let l = hb(b); l < hb(b) + tallOf(BY[b.code]); l++) cellsOf(BY[b.code], b.c, b.r, b.rot).forEach(([x,z]) => om.delete(key(l,x,z)));
+  if (BY[b.code].acc) holesOf(BY[b.code], b.c, b.r, b.rot).forEach(([x,z]) => occH.delete(key(hb(b),x,z)));
+  else for (let l = hb(b); l < hb(b) + tallOf(BY[b.code]); l++) cellsOf(BY[b.code], b.c, b.r, b.rot).forEach(([x,z]) => om.delete(key(l,x,z)));
   if (record) undo.push({ op:'remove', b });
   if (picked === id) picked = null;
   changed();
 }
 function supporting(b){
-  return cellsOf(BY[b.code], b.c, b.r, b.rot).some(([x,z]) => occ.has(key(hb(b) + tallOf(BY[b.code]), x, z)));
+  if (isFluid(b.code) || BY[b.code].acc) return false;   // nor do accessories: one in the board sits a half level below deck accessories beside it, which aren't on it (16 Nov 2026)          // water and lava hold nothing up (a jetty stands on its posts), so they can always come out from under (16 Nov 2026)
+  const top = hb(b) + tallOf(BY[b.code]), cs = cellsOf(BY[b.code], b.c, b.r, b.rot);
+  return cs.some(([x,z]) => occ.has(key(top, x, z)))
+    || blocks.some(a => BY[a.code].acc && hb(a) === top && holesOf(BY[a.code], a.c, a.r, a.rot).some(([x,z]) => cs.some(([u,v]) => (u === x || u === x-1) && (v === z || v === z-1))));   // an accessory plugged into one of its sockets
 }
 
 /* ---------- overlays ---------- */
 const ghost = new THREE.Mesh(new THREE.BufferGeometry(), ghostMat); ghost.visible = false; scene.add(ghost);
 const pads = new THREE.InstancedMesh(quad, padMat, 64); pads.frustumCulled = false; pads.visible = false; scene.add(pads);
+const sockRing = new THREE.RingGeometry(3.6, 5.4, 28); sockRing.rotateX(-Math.PI/2);
+const sockPads = new THREE.InstancedMesh(sockRing, padMat, 16); sockPads.frustumCulled = false; sockPads.visible = false; sockPads.count = 0; scene.add(sockPads);
 let ghostAt = null; // {c,r,ok}
 function showGhost(c, r){
   if (!sel || view || erase){ hideGhost(); return; }
   const [w,h] = foot(sel, rot);
-  const res = check(sel, c, r, rot, level);
+  const res = check(sel, c, r, rot, level, half);
   ghost.geometry = geos[sel.code];
-  ghost.position.set((c + w/2)*P, res.lvl*LV, (r + h/2)*P); ghost.rotation.y = -rot*Math.PI/2; ghost.visible = true;
+  ghost.position.set((c + w/2)*P, res.lvl*LV, (r + h/2)*P); ghost.rotation.y = -rot*Math.PI/2; if (half && turns45(sel)) spin45(ghost, sel, c, r, rot); ghost.visible = true;
   const col = new THREE.Color(css(res.ok ? '--ok' : '--bad'));
   ghostMat.color.copy(col); ghostMat.emissive.copy(col); padMat.color.copy(col);
   const cs = cellsOf(sel, c, r, rot); const m4 = new THREE.Matrix4();
-  pads.count = cs.length;
-  cs.forEach(([x,z],i) => { m4.makeTranslation(x*P + P/2, res.lvl*LV + 0.4, z*P + P/2); pads.setMatrixAt(i, m4); });
-  pads.instanceMatrix.needsUpdate = true; pads.visible = true;
+  if (sel.acc && sel.holes){                      // an accessory goes by sockets: ring the ones it uses, no squares (16 Nov 2026)
+    const hs = holesOf(sel, c, r, rot); sockPads.count = hs.length;
+    hs.forEach(([x,z],i) => { m4.makeTranslation(x*P, res.lvl*LV + 0.5, z*P); sockPads.setMatrixAt(i, m4); });
+    sockPads.instanceMatrix.needsUpdate = true; sockPads.visible = true; pads.visible = false;
+  } else {
+    pads.count = cs.length;
+    cs.forEach(([x,z],i) => { m4.makeTranslation(x*P + P/2, res.lvl*LV + 0.4, z*P + P/2); pads.setMatrixAt(i, m4); });
+    pads.instanceMatrix.needsUpdate = true; pads.visible = true; sockPads.visible = false;
+  }
   ghostAt = { c, r, ok:res.ok };
   hint(res.ok ? `${sel.code} ${nm(sel)} fits here.` : res.why, res.ok ? 'ok' : 'bad');
   return res;
 }
-function hideGhost(){ ghost.visible = false; pads.visible = false; ghostAt = null; $('place-btn').hidden = true; }
+function hideGhost(){ ghost.visible = false; pads.visible = false; sockPads.visible = false; ghostAt = null; $('place-btn').hidden = true; }
 
 /* cursor: click an empty square to highlight it, then pick a tile below to put it there */
 const cursorMesh = new THREE.Group();
@@ -1098,7 +1304,7 @@ function computeFits(){
   if (!b){ if (fitSet){ fitSet = null; renderPalette(true); } return; }
   const pm = BY[b.code], [pw, ph] = foot(pm, b.rot), lv = Math.floor(b.level), near = new Set();
   cellsOf(pm, b.c, b.r, b.rot).forEach(([x, z]) => [[0,0],[1,0],[-1,0],[0,1],[0,-1]].forEach(([dx, dz]) => near.add((x + dx) + ',' + (z + dz))));
-  const list = MODELS.filter(m => catOf(m) === cat && !m.hidden), found = new Set(); let i = 0;
+  const list = MODELS.filter(m => inCat(m) && !m.hidden), found = new Set(); let i = 0;
   const step = () => {
     if (job !== fitJob) return;
     const t0 = performance.now();
@@ -1109,8 +1315,9 @@ function computeFits(){
         for (let c = b.c - w; c <= b.c + pw && !ok; c++) for (let r = b.r - h; r <= b.r + ph && !ok; r++){
           if (!cellsOf(m, c, r, ro).some(([x, z]) => near.has(x + ',' + z))) continue;
           if (!check(m, c, r, ro, lv).ok) continue;
-          if (pm.kind === 'shelf' && m.kind === 'shelf' && !edgesMatch(b, { code:m.code, c, r, rot:ro })) continue;
-          if ((pm.kind === 'shelf') !== (m.kind === 'shelf') && !tucks(b, { code:m.code, c, r, rot:ro })) continue;
+          const deck = pm.deck || m.deck;          // jetty pieces have no bank profile to match and nothing tucks under an edge: the placement check is enough
+          if (!deck && pm.kind === 'shelf' && m.kind === 'shelf' && !edgesMatch(b, { code:m.code, c, r, rot:ro })) continue;
+          if (!deck && (pm.kind === 'shelf') !== (m.kind === 'shelf') && !tucks(b, { code:m.code, c, r, rot:ro })) continue;
           ok = true;
         }
       }
@@ -1123,13 +1330,40 @@ function computeFits(){
 }
 function pickedBlock(){ return picked === null ? null : blocks.find(b => b.id === picked) || null; }
 // turn a placed tile 90 degrees where it stands
+// what sits on a tile: tiles stacked on its squares, and accessories plugged into its sockets
+function restingOn(b){
+  if (BY[b.code].acc) return [];
+  const top = hb(b) + tallOf(BY[b.code]), cs = cellsOf(BY[b.code], b.c, b.r, b.rot);
+  return blocks.filter(a => a !== b && hb(a) === top && (BY[a.code].acc
+    ? holesOf(BY[a.code], a.c, a.r, a.rot).some(([x,z]) => cs.some(([u,v]) => (u === x || u === x-1) && (v === z || v === z-1)))
+    : cellsOf(BY[a.code], a.c, a.r, a.rot).some(([x,z]) => cs.some(([u,v]) => u === x && v === z))));
+}
+// a tile with things on it can still turn, as long as the turned tile fits and everything on it still fits on top (16 Nov 2026)
+function turnUnder(b){
+  const up = restingOn(b);
+  let nb = { ...b, rot:(b.rot + 1) % 4 };
+  if (oneSocket(BY[b.code])){ const s = stepInPlace(BY[b.code], b.c, b.r, b.rot, b.t45); nb = { ...b, c:s.c, r:s.r, rot:s.rot }; if (s.t45) nb.t45 = 1; else delete nb.t45; }
+  up.forEach(a => removeBlock(a.id, false)); removeBlock(b.id, false);
+  const back = (why) => { addBlock(b, false); up.forEach(a => addBlock(a, false)); changed(); pickBlock(b.id); toast(why); };
+  const res = check(BY[nb.code], nb.c, nb.r, nb.rot, nb.level, nb.t45);
+  if (!res.ok || res.lvl !== b.level) return back(`It can’t turn here: ${res.ok ? 'it would sit at a different height.' : res.why}`);
+  nb.level = res.lvl; addBlock(nb, false);
+  const put = [];
+  for (const a of up){
+    const r2 = check(BY[a.code], a.c, a.r, a.rot, a.level, a.t45);
+    if (!r2.ok || r2.lvl !== a.level){ put.forEach(x => removeBlock(x.id, false)); removeBlock(nb.id, false); return back(`It can’t turn: the ${a.code} on it wouldn’t fit any more.`); }
+    addBlock(a, false); put.push(a);
+  }
+  undo.push({ op:'swap', before:b, after:nb }); changed(); pickBlock(nb.id); rot = nb.rot; half = nb.t45 ? 1 : 0;
+}
 function turnBlock(b){
-  if (supporting(b)){ toast('Remove the tile on top of it first'); return; }
-  const nb = { ...b, rot:(b.rot + 1) % 4 };
+  if (supporting(b)){ turnUnder(b); return; }
+  let nb = { ...b, rot:(b.rot + 1) % 4 };
+  if (oneSocket(BY[b.code])){ const s = stepInPlace(BY[b.code], b.c, b.r, b.rot, b.t45); nb = { ...b, c:s.c, r:s.r, rot:s.rot }; if (s.t45) nb.t45 = 1; else delete nb.t45; }   // turns where it stands
   removeBlock(b.id, false);
-  const res = check(BY[nb.code], nb.c, nb.r, nb.rot, nb.level);
+  const res = check(BY[nb.code], nb.c, nb.r, nb.rot, nb.level, nb.t45);
   if (!res.ok){ setPending({ ...nb, from:b }, res.why); return; }
-  nb.level = res.lvl; addBlock(nb, false); undo.push({ op:'swap', before:b, after:nb }); changed(); pickBlock(nb.id); rot = nb.rot;
+  nb.level = res.lvl; addBlock(nb, false); undo.push({ op:'swap', before:b, after:nb }); changed(); pickBlock(nb.id); rot = nb.rot; half = nb.t45 ? 1 : 0;
 }
 function deletePicked(){
   const b = pickedBlock(); if (!b) return false;
@@ -1142,7 +1376,7 @@ function choose(m){
   if (stockStop(m)) return;
   dropPending();
   if (cursor && !view && !erase){
-    const res = check(m, cursor.c, cursor.r, rot, level);
+    const res = check(m, cursor.c, cursor.r, rot, level, half);
     if (!res.ok){ const at = cursor; selectTile(null, true); setPending({ code:m.code, c:at.c, r:at.r, rot, level }, res.why); return; }
     const b = { id:nextId++, code:m.code, c:cursor.c, r:cursor.r, rot, level:res.lvl };
     addBlock(b); setCursor(null); selectTile(null, true); pickBlock(b.id); tip('placed');
@@ -1176,6 +1410,7 @@ function refreshLevels(){
   silMesh.visible = availMesh.visible = !view;
   plane.position.y = level*LV;
   if (picked !== null && meshes.has(picked) && !view) meshes.get(picked).material = pickMat;
+  if (multi.size && !view) for (const id of multi) if (meshes.has(id)) meshes.get(id).material = multiMat;
   document.querySelectorAll('[data-level]').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.level === level)));
 }
 
@@ -1194,7 +1429,18 @@ function syncRail(){
   $('t-rot').classList.toggle('ready', B || picked !== null || !!sel || !!pending);
   $('t-erase').classList.toggle('ready', (B && boards.length > 1) || (picked !== null && !erase));
 }
-function hint(text, kind=''){ try { syncRail(); } catch {} $('hint-text').textContent = text; $('hint').className = 'hint ' + kind; }
+// the hint bar (16 Nov 2026): each message shows the first time only, and a tap hides it. Reasons a tile won't fit and the Place button always show.
+const hintSeen = new Set(store.get('tf-hints') || []);
+let hintNow = '', hintGone = '';
+const hintKey = s => s.replace(/P\d{4}[A-Z]?/g, '#').replace(/\d+/g, 'n').slice(0, 70);
+function hint(text, kind=''){
+  try { syncRail(); } catch {}
+  $('hint-text').textContent = text; $('hint').className = 'hint ' + kind;
+  const k = hintKey(text);
+  if (k !== hintNow){ if (hintNow){ hintSeen.add(hintNow); store.set('tf-hints', [...hintSeen]); } hintNow = k; }
+  $('hint').hidden = kind === 'bad' ? hintGone === text : (hintSeen.has(k) || hintGone === text);
+}
+$('hint').addEventListener('click', e => { if (e.target.closest('#place-btn')) return; hintGone = $('hint-text').textContent; hintSeen.add(hintNow); store.set('tf-hints', [...hintSeen]); $('hint').hidden = true; });
 // messages show in the middle of the build area for a moment, then fade: red for anything that went wrong, teal for confirmations
 let tt;
 function toast(t, kind){
@@ -1209,6 +1455,7 @@ function idleHint(){
   if (typeof pending !== 'undefined' && pending) hint(`This tile doesn’t fit yet. Click it or press ${KN('turn')} to rotate, or drag it. It won’t be kept unless it fits.`, 'bad');
   else if (view) hint('View mode. Orbit and zoom freely. Tap the eye to keep building.');
   else if (arrange) hint(boards.length > 1 ? 'Editing boards. Click or drag a board (green where it clips on). Rotate and remove act on the selected board; + adds a board.' : 'Add a second board to clip on, then slide it into place here.');
+  else if (selMode) hint(multi.size ? `${multi.size} selected. Drag one of them to move them all, ${KN('del')} removes them, Esc clears.` : 'Select mode. Drag a box over tiles: only tiles wholly inside it are picked. Click a tile to add or drop it, Shift-drag to add more.');
   else if (erase) hint(`Remove mode. Tap a tile on level ${level+1} to remove it.`);
   else if (pickedBlock()) hint(`${pickedBlock().code} selected. Click again to turn it 90°, drag to shift it (drag it off the board to remove it), or press ${KN('del')}. Tiles marked Fits below can go beside it; green ones are made for it.`);
   else if (cursor) hint('Square highlighted. Pick a tile below to place it here.');
@@ -1226,6 +1473,8 @@ function rowsHTML(counts, removable){
   }).join('');
 }
 function changed(){
+  if (hush) return;                                 // a group move is testing spots: refresh once at the end
+  wake();                                           // something on the map changed: draw it
   if (picked !== null) computeFits();
   const counts = partsOf(blocks);
   const n = blocks.length;
@@ -1309,21 +1558,141 @@ function setLevel(l){ dropPending(); if (l !== level && l > 0) tip('level'); lev
 document.querySelectorAll('[data-level]').forEach(b => b.addEventListener('click', () => setLevel(+b.dataset.level)));
 function setView(v){
   if (v) tip('view');
+  if (v && selMode) setSelMode(false);
   view = v; $('t-view').setAttribute('aria-pressed', String(v));
+  document.body.classList.toggle('viewing', v); $('view-close').hidden = !v;      // nothing but the model on screen (16 Nov 2026)
+  if (v){ setMenu(false); $('colour-pop').hidden = true; }
   ['t-rot','t-erase'].forEach(id => $(id).disabled = v);
   document.querySelectorAll('[data-level]').forEach(b => b.disabled = v);
   hideGhost(); refreshLevels(); idleHint();
 }
 $('t-view').onclick = () => setView(!view);
-function setErase(v){ if (v) tip('erase'); erase = v; $('t-erase').setAttribute('aria-pressed', String(v)); if (v){ selectTile(null, true); cursor = null; cursorMesh.visible = false; pickBlock(null, true); } hideGhost(); idleHint(); }
+$('view-close').onclick = () => setView(false);
+function setErase(v){ if (v && selMode) setSelMode(false); if (v) tip('erase'); erase = v; $('t-erase').setAttribute('aria-pressed', String(v)); if (v){ selectTile(null, true); cursor = null; cursorMesh.visible = false; pickBlock(null, true); } hideGhost(); idleHint(); }
 $('t-erase').onclick = () => arrange ? removeBoard() : setErase(!erase);
-function rotate(){ if (placing){ turnPlacing(); return; } if (arrange){ rotateBoard(); return; } if (pending){ turnPending(); return; } const b = pickedBlock(); if (b && !sel){ turnBlock(b); return; } rot = (rot + 1) % 4; if (ghostAt) showGhost(ghostAt.c, ghostAt.r); else idleHint(); }
+
+/* ---------- select (16 Nov 2026): drag a box over the view and every tile wholly inside it is picked; drag one of them to move them all ---------- */
+const multiMat = new THREE.MeshStandardMaterial({ color:0x60A5FA, emissive:0x60A5FA, emissiveIntensity:0.4, flatShading:true, roughness:0.6 });
+const multiBad = new THREE.MeshStandardMaterial({ color:0xf87171, emissive:0xf87171, emissiveIntensity:0.4, flatShading:true, roughness:0.6 });
+let marq = null, gdrag = null;
+function setMulti(ids, mat){
+  const old = multi; multi = new Set([...ids].filter(id => meshes.has(id)));
+  for (const id of new Set([...old, ...multi])){ const m = meshes.get(id); if (!m) continue; const b = blocks.find(x => x.id === id);
+    m.material = multi.has(id) ? (mat || multiMat) : id === picked ? pickMat : matOf(b.code, !view && !onLevel(b, level)); }
+  idleHint();
+}
+function setSelMode(v){
+  if (v){ setView(false); if (arrange) setArrange(false); selectTile(null, true); setErase(false); setCursor(null); pickBlock(null, true); dropPending(); hideGhost(); }
+  selMode = v; $('t-select').setAttribute('aria-pressed', String(v)); document.body.classList.toggle('selecting', v);
+  if (!v){ setMulti([]); $('marq').hidden = true; marq = null; }
+  idleHint();
+}
+// whole tiles only: every corner of the tile's own box has to land inside the dragged box on screen
+function boxPick(x0, y0, x1, y1){
+  const r = canvas.getBoundingClientRect(), v = new THREE.Vector3(), out = [];
+  for (const b of blocks){ const m = meshes.get(b.id); if (!m || !m.visible) continue;
+    const g = m.geometry; if (!g.boundingBox) g.computeBoundingBox(); const bb = g.boundingBox; m.updateMatrixWorld();
+    let inside = true;
+    for (let i = 0; i < 8 && inside; i++){
+      v.set(i & 1 ? bb.max.x : bb.min.x, i & 2 ? bb.max.y : bb.min.y, i & 4 ? bb.max.z : bb.min.z).applyMatrix4(m.matrixWorld).project(camera);
+      const sx = r.left + (v.x + 1)/2*r.width, sy = r.top + (1 - v.y)/2*r.height;
+      if (v.z > 1 || sx < x0 || sx > x1 || sy < y0 || sy > y1) inside = false;
+    }
+    if (inside) out.push(b.id);
+  }
+  return out;
+}
+// would the whole group fit shifted by (dc, dr)? Lifts it out, puts each piece back lowest first (water, then tiles, then accessories), then undoes that
+function groupTry(list, dc, dr){
+  const ids = new Set(list.map(b => b.id));
+  const on = blocks.find(a => !ids.has(a.id) && list.some(b => restingOn(b).includes(a)));
+  if (on) return { ok:false, why:`${on.code} sits on the selection. Select it too, or move it first.` };
+  const rank = b => isFluid(b.code) ? 0 : BY[b.code].acc ? 2 : 1;
+  const order = [...list].sort((a, b) => a.level - b.level || rank(a) - rank(b));
+  hush++; list.forEach(b => removeBlock(b.id, false));
+  const put = []; let why = null;
+  for (const b of order){
+    const nb = { ...b, c:b.c + dc, r:b.r + dr }, res = check(BY[b.code], nb.c, nb.r, nb.rot, b.level, b.t45);
+    if (!res.ok){ why = `${b.code}: ${res.why}`; break; }
+    nb.level = res.lvl; addBlock(nb, false); put.push(nb);
+  }
+  put.forEach(nb => removeBlock(nb.id, false)); list.forEach(b => addBlock(b, false)); hush--;
+  return why ? { ok:false, why } : { ok:true, put };
+}
+function gdragShow(){
+  const g = gdrag; setMulti(multi, g.res && !g.res.ok ? multiBad : multiMat);
+  for (const b of g.list){ const m = meshes.get(b.id); if (m){ m.position.x += g.dc*P; m.position.z += g.dr*P; } }
+  hint(g.res && !g.res.ok ? `${g.res.why} Let go and they go back.` : `Let go to drop ${g.list.length} tile${g.list.length === 1 ? '' : 's'} here.`, g.res && !g.res.ok ? 'bad' : 'ok');
+}
+function gdragEnd(){
+  const g = gdrag; gdrag = null; controls.enabled = true; if (!g.on) return;
+  for (const b of g.list){ const m = meshes.get(b.id); if (m){ m.position.x -= g.dc*P; m.position.z -= g.dr*P; } }
+  if (!g.dc && !g.dr){ setMulti(multi); return; }
+  if (!g.res || !g.res.ok){ setMulti(multi); toast(g.res ? g.res.why : 'They can’t go there.'); return; }
+  hush++; g.list.forEach(b => removeBlock(b.id, false)); g.res.put.forEach(b => addBlock(b, false)); hush--;
+  undo.push({ op:'group', before:g.list, after:g.res.put }); changed(); setMulti(g.res.put.map(b => b.id));
+}
+function deleteMulti(){
+  const list = blocks.filter(b => multi.has(b.id)), ids = new Set(list.map(b => b.id));
+  const on = blocks.find(a => !ids.has(a.id) && list.some(b => restingOn(b).includes(a)));
+  if (on){ toast(`${on.code} sits on the selection. Select it too, or move it first.`); return; }
+  hush++; list.forEach(b => removeBlock(b.id, false)); hush--;
+  undo.push({ op:'clear', list }); changed(); setMulti([]); toast(`Removed ${list.length} tile${list.length === 1 ? '' : 's'}. Undo brings them back.`);
+}
+$('t-select').onclick = () => setSelMode(!selMode);
+stage.addEventListener('pointerdown', e => {
+  if (!selMode || e.target !== canvas || e.button > 0) return;
+  if (marq || gdrag){ marq = null; $('marq').hidden = true; gdrag = null; controls.enabled = true; return; }   // a second finger: leave it to the view
+  if (multi.size && setRay(e.clientX, e.clientY)){
+    const hit = ray.intersectObjects([...multi].map(id => meshes.get(id)).filter(Boolean))[0], b = hit && blocks.find(x => x.id === hit.object.userData.id);
+    if (b){ const hy = b.level*LV, sq = squareAt(e.clientX, e.clientY, true, hy); if (sq){
+      gdrag = { id:e.pointerId, hy, sq, dc:0, dr:0, on:false, x:e.clientX, y:e.clientY, list:blocks.filter(x => multi.has(x.id)), res:null };
+      controls.enabled = false; e.stopPropagation(); return; } }
+  }
+  marq = { id:e.pointerId, x:e.clientX, y:e.clientY, x1:e.clientX, y1:e.clientY, on:false, add:e.shiftKey };
+  controls.enabled = false; e.stopPropagation();
+}, { capture:true });
+addEventListener('pointermove', e => {
+  if (marq && e.pointerId === marq.id){
+    if (!marq.on && Math.hypot(e.clientX - marq.x, e.clientY - marq.y) < 6) return;
+    marq.on = true; marq.x1 = e.clientX; marq.y1 = e.clientY;
+    const el = $('marq'), r = el.parentElement.getBoundingClientRect();
+    Object.assign(el.style, { left:(Math.min(marq.x, marq.x1) - r.left) + 'px', top:(Math.min(marq.y, marq.y1) - r.top) + 'px', width:Math.abs(marq.x1 - marq.x) + 'px', height:Math.abs(marq.y1 - marq.y) + 'px' });
+    el.hidden = false; return;
+  }
+  if (gdrag && e.pointerId === gdrag.id){
+    if (!gdrag.on){ if (Math.hypot(e.clientX - gdrag.x, e.clientY - gdrag.y) < 6) return; gdrag.on = true; }
+    const sq = squareAt(e.clientX, e.clientY, true, gdrag.hy); if (!sq) return;
+    const dc = sq.c - gdrag.sq.c, dr = sq.r - gdrag.sq.r; if (dc === gdrag.dc && dr === gdrag.dr && gdrag.res) return;
+    for (const b of gdrag.list){ const m = meshes.get(b.id); if (m){ m.position.x -= gdrag.dc*P; m.position.z -= gdrag.dr*P; } }
+    gdrag.dc = dc; gdrag.dr = dr; gdrag.res = (dc || dr) ? groupTry(gdrag.list, dc, dr) : { ok:true, put:gdrag.list };
+    gdragShow();
+  }
+});
+addEventListener('pointerup', e => {
+  if (marq && e.pointerId === marq.id){
+    const m = marq; marq = null; controls.enabled = true; $('marq').hidden = true;
+    if (!m.on){ const b = blockAt(e.clientX, e.clientY); if (b){ const s = new Set(multi); s.has(b.id) ? s.delete(b.id) : s.add(b.id); setMulti(s); } else setMulti([]); return; }
+    const ids = boxPick(Math.min(m.x, m.x1), Math.min(m.y, m.y1), Math.max(m.x, m.x1), Math.max(m.y, m.y1));
+    setMulti(m.add ? [...multi, ...ids] : ids);
+    if (!ids.length) toast('Nothing was wholly inside the box', 'info');
+    return;
+  }
+  if (gdrag && e.pointerId === gdrag.id) gdragEnd();
+});
+addEventListener('pointercancel', e => {
+  if (marq && e.pointerId === marq.id){ marq = null; controls.enabled = true; $('marq').hidden = true; }
+  if (gdrag && e.pointerId === gdrag.id){ const g = gdrag; g.res = null; gdragEnd(); }
+});
+function rotate(){ if (placing){ turnPlacing(); return; } if (arrange){ rotateBoard(); return; } if (pending){ turnPending(); return; } const b = pickedBlock(); if (b && !sel){ turnBlock(b); return; } if (oneSocket(sel)){ if (ghostAt){ const s = stepInPlace(sel, ghostAt.c, ghostAt.r, rot, half); rot = s.rot; half = s.t45; showGhost(s.c, s.r); } else { const s = (rot*2 + half + 1) % 8; rot = s >> 1; half = s & 1; idleHint(); } return; }
+  rot = (rot + 1) % 4; half = 0; if (ghostAt){ const cl = sel && sel.acc && ptrXY ? cellAt(...ptrXY) : null; cl ? showGhost(cl.c, cl.r) : showGhost(ghostAt.c, ghostAt.r); } else idleHint(); }
 $('t-rot').onclick = rotate;
 function doUndo(){
   if (pending){ const p = pending; pending = null; pendMesh.visible = false; if (p.from) addBlock(p.from, false); changed(); idleHint(); return; }
   const a = undo.pop(); if (!a) return;
   if (a.op === 'clear'){ a.list.forEach(b => addBlock(b, false)); toast(`Restored ${a.list.length} tiles`); }
   else if (a.op === 'swap'){ removeBlock(a.after.id, false); addBlock(a.before, false); }
+  else if (a.op === 'group'){ hush++; a.after.forEach(b => removeBlock(b.id, false)); a.before.forEach(b => addBlock(b, false)); hush--; setMulti(multi); }
   else if (a.op === 'add') removeBlock(a.b.id, false); else addBlock(a.b, false);
   if (picked !== null && !meshes.has(picked)) picked = null;
   changed();
@@ -1425,7 +1794,7 @@ function rotateBoard(){
   const cx = bd.x + bd.w/2, cz = bd.z + bd.l/2;
   const spot = others.length ? nearestSpot(others, bd.l, bd.w, Math.round(cx - bd.l/2), Math.round(cz - bd.w/2)) : { x:bd.x, z:bd.z };
   if (!spot){ toast('No room to rotate this board here'); return; }
-  const nb = { x:spot.x, z:spot.z, w:bd.l, l:bd.w };
+  const nb = { x:spot.x, z:spot.z, w:bd.l, l:bd.w, ...(bd.fin ? { fin:bd.fin } : {}) };
   on.forEach(bl => removeBlock(bl.id, false));
   boards = boards.map((b, i) => i === selBoard ? nb : b);
   for (const bl of on){                                  // (u, v) on the old board -> (l - v - h, u) on the turned one
@@ -1435,6 +1804,9 @@ function rotateBoard(){
   undo.length = 0; setCursor(null); buildBoard(); frame(); changed(); flash(); toast('Board rotated 90°');
 }
 $('mb-rot').onclick = rotateBoard;
+$('mb-fin').innerHTML = Object.entries(FINISH).map(([k, f]) => `<option value="${k}">${f.name}</option>`).join('');
+$('mb-fin').onchange = e => { const v = e.target.value; boards = boards.map((b, i) => { if (i !== selBoard) return b; const nb = { ...b }; if (v === 'mdf') delete nb.fin; else nb.fin = v; return nb; });
+  buildBoard(); changed(); if (v !== 'mdf') toast('Finish preview: boards ship as raw MDF for now', 'info'); };
 
 // move board i to (x, z), carrying the tiles that sit wholly on it
 function shiftBoard(i, x, z){
@@ -1504,7 +1876,7 @@ function removeBoard(){
   boards = next; selBoard = 0; buildBoard(); frame(); changed(); idleHint(); toast('Board removed');
 }
 function setArrange(v){
-  dropPending();
+  dropPending(); if (v && selMode) setSelMode(false);
   if (v) tip('boards');
   if (!v && placing) endPlacing(false);
   arrange = v; $('movebar').hidden = !v || !!placing; if (v && view) setView(false);
@@ -1543,11 +1915,15 @@ addEventListener('keydown', e => {
   if (tdrag) return;
   if (arrange && k.startsWith('arrow')){ e.preventDefault(); moveBoard(k === 'arrowleft' ? -1 : k === 'arrowright' ? 1 : 0, k === 'arrowup' ? -1 : k === 'arrowdown' ? 1 : 0); return; }
   if (arrange && k === 'escape'){ setArrange(false); return; }
+  if (view && k === 'escape'){ setView(false); return; }
   if (act === 'tiles'){ setArrange(false); return; }
   if (act === 'boards'){ setArrange(true); return; }
   if (arrange && act === 'del'){ e.preventDefault(); removeBoard(); return; }
   if (arrange && act === 'turn'){ rotateBoard(); return; }
   if (arrange && act === 'erase') return;
+  if (act === 'select' && !view){ setSelMode(!selMode); return; }
+  if (selMode && act === 'del'){ e.preventDefault(); if (multi.size) deleteMulti(); return; }
+  if (selMode && k === 'escape'){ multi.size ? setMulti([]) : setSelMode(false); return; }
   if (act === 'turn' && !view) rotate();
   else if (act === 'erase') setErase(!erase);
   else if (act === 'view') setView(!view);
@@ -1561,7 +1937,15 @@ addEventListener('keydown', e => {
 });
 
 /* ---------- palette ---------- */
-let cat = 'Caves', sub = null;   // sub: one group within the range, or null for all of them
+const FAVTAB = '★ Favourites';
+let favs = new Set(store.get('tf-favs') || []);       // piece codes the user has starred; kept on this device
+const inCat = m => cat === FAVTAB ? favs.has(m.code) : catOf(m) === cat;
+const grpOf = m => cat === FAVTAB ? catOf(m) : groupOf(m);
+let cat = 'Caves';
+// the groups showing in each range (16 Nov 2026): any mix, toggled on and off; empty means all of them. Remembered per range on this device.
+const subsBy = store.get('tf-subs') || {};
+const subsOf = () => new Set(subsBy[cat] || []);
+const setSubs = s => { if (s.size) subsBy[cat] = [...s]; else delete subsBy[cat]; store.set('tf-subs', subsBy); };
 // lava or water: the same pieces either way for now, so it's only the colour (and the names)
 async function setFluid(mode, quiet){
   if (mode !== 'lava' && mode !== 'water') return;
@@ -1586,23 +1970,24 @@ function stockStop(m){ if (!outOfStock(m)) return false; toast(`No ${m.code} lef
 function selectTile(m, quiet){
   if (m) dropPending();
   if (m && !quiet) tip('pick');
-  sel = m; if (m) setErase(false);
+  if (m && selMode) setSelMode(false);
+  sel = m; if (m) setErase(false); if (!turns45(m)) half = 0;
   document.querySelectorAll('.card').forEach(c => c.setAttribute('aria-pressed', String(!!m && c.dataset.code === m.code)));
   if (m) $('pick').value = m.code;
   hideGhost(); if (!quiet) idleHint();
 }
 function renderPalette(keep){
-  const names = TABS.filter(n => MODELS.some(m => catOf(m) === n && !m.hidden));
+  const names = [FAVTAB, ...TABS.filter(n => MODELS.some(m => catOf(m) === n && !m.hidden))];
   const shown = m => !m.hidden && (!stockMode || (owned[m.code] || 0) > 0);
-  $('cats').innerHTML = names.map(n => `<button role="tab" type="button" aria-selected="${n===cat}" data-cat="${n}">${n} <span class="hud">${MODELS.filter(m => catOf(m)===n && shown(m)).length}</span></button>`).join('');
+  $('cats').innerHTML = names.map(n => `<button role="tab" type="button" aria-selected="${n===cat}" data-cat="${n}">${n} <span class="hud">${MODELS.filter(m => (n === FAVTAB ? favs.has(m.code) : catOf(m)===n) && shown(m)).length}</span></button>`).join('');
   $('fluidseg').hidden = cat !== FLUIDTAB;
   $('f-lava').setAttribute('aria-checked', String(fluidMode === 'lava')); $('f-water').setAttribute('aria-checked', String(fluidMode === 'water'));
-  const gi = m => { const i = (GROUP_ORDER[cat] || []).indexOf(groupOf(m)); return i < 0 ? 99 : i; };
-  const list = MODELS.filter(m => catOf(m) === cat && shown(m)).map((m, i) => [m, i]).sort((a, b) => gi(a[0]) - gi(b[0]) || a[1] - b[1]).map(x => x[0]);
-  const allGroups = [...new Set(list.map(groupOf))];
-  if (sub && !allGroups.includes(sub)) sub = null;
-  const groups = []; for (const m of list){ if (sub && groupOf(m) !== sub) continue; const g = groupOf(m); if (!groups.length || groups[groups.length - 1][0] !== g) groups.push([g, []]); groups[groups.length - 1][1].push(m); }
-  $('subs').innerHTML = allGroups.length > 1 ? [`<button type="button" data-sub="" aria-pressed="${!sub}">All</button>`, ...allGroups.map(g => `<button type="button" data-sub="${g}" aria-pressed="${sub === g}">${g} <span class="hud">${list.filter(m => groupOf(m) === g).length}</span></button>`)].join('') : '';
+  const gi = m => { const i = (cat === FAVTAB ? TABS : GROUP_ORDER[cat] || []).indexOf(grpOf(m)); return i < 0 ? 99 : i; };
+  const list = MODELS.filter(m => inCat(m) && shown(m)).map((m, i) => [m, i]).sort((a, b) => gi(a[0]) - gi(b[0]) || a[1] - b[1]).map(x => x[0]);
+  const allGroups = [...new Set(list.map(grpOf))];
+  const subs = new Set([...subsOf()].filter(g => allGroups.includes(g)));
+  const groups = []; for (const m of list){ if (subs.size && !subs.has(grpOf(m))) continue; const g = grpOf(m); if (!groups.length || groups[groups.length - 1][0] !== g) groups.push([g, []]); groups[groups.length - 1][1].push(m); }
+  $('subs').innerHTML = allGroups.length > 1 ? [`<button type="button" data-sub="" aria-pressed="${!subs.size}">All</button>`, ...allGroups.map(g => `<button type="button" data-sub="${g}" aria-pressed="${subs.has(g)}" title="Show or hide ${g}">${g} <span class="hud">${list.filter(m => grpOf(m) === g).length}</span></button>`)].join('') : '';
   const sl = strip.scrollLeft;
   const tag = m => {
     const own = owned[m.code] || 0, used = usedOf(m.code), left = own - used;
@@ -1612,15 +1997,27 @@ function renderPalette(keep){
   const pk = pickedBlock(), made = pk ? madeFor(pk.code) : null;
   const fitCls = m => made && made.has(m.code) ? ' match' : fitSet ? (fitSet.has(m.code) ? ' fit' : ' nofit') : '';
   const card = m => `<button class="card${outOfStock(m) ? ' out' : ''}${fitCls(m)}" type="button" data-code="${m.code}" aria-pressed="${sel && sel.code===m.code}" aria-label="${m.code} ${nm(m)}, ${m.cells[0]} by ${m.cells[1]}"><img src="${m.thumb}" alt=""><b>${nm(m)}</b><span>${m.code} · ${m.cells[0]}×${m.cells[1]}</span>${tag(m)}</button>`;
-  const one = m => stockMode ? card(m)
-      : `<div class="cw">${card(m)}<div class="own"><button type="button" data-own="-1" data-code="${m.code}" aria-label="Own one fewer ${m.code}">−</button><span>Own <b>${owned[m.code] || 0}</b></span><button type="button" data-own="1" data-code="${m.code}" aria-label="Own one more ${m.code}">+</button></div></div>`;
+  const star = m => `<button type="button" class="fav" data-fav="${m.code}" aria-pressed="${favs.has(m.code)}" aria-label="${favs.has(m.code) ? 'Remove ' + m.code + ' from favourites' : 'Add ' + m.code + ' to favourites'}" title="Favourite">${favs.has(m.code) ? '★' : '☆'}</button>`;
+  const one = m => stockMode ? `<div class="cw">${card(m)}${star(m)}</div>`
+      : `<div class="cw">${card(m)}${star(m)}<div class="own"><button type="button" data-own="-1" data-code="${m.code}" aria-label="Own one fewer ${m.code}">−</button><span>Own <b>${owned[m.code] || 0}</b></span><button type="button" data-own="1" data-code="${m.code}" aria-label="Own one more ${m.code}">+</button></div></div>`;
   $('strip').innerHTML = list.length ? groups.map(([g, ms]) => `<div class="sg" role="group" aria-label="${g}"><span class="sg-h">${g}</span>${ms.map(one).join('')}</div>`).join('')
-    : `<p class="emptynote">${stockMode ? 'You haven’t added any of these to your stock yet. Switch to Store and use + under the pieces you own.' : 'Nothing in this category yet.'}</p>`;
+    : `<p class="emptynote">${stockMode ? 'You haven’t added any of these to your stock yet. Switch to Store and use + under the pieces you own.' : cat === FAVTAB ? 'No favourites yet. Tap the ☆ on any piece to keep it here.' : 'Nothing in this category yet.'}</p>`;
   $('pick').innerHTML = `<option value="">${cat}: choose…</option>` + groups.map(([g, ms]) => `<optgroup label="${g}">${ms.map(m => `<option value="${m.code}">${m.code} ${nm(m)} (${m.cells[0]}×${m.cells[1]})</option>`).join('')}</optgroup>`).join('');
-  if (sel && catOf(sel) === cat) $('pick').value = sel.code;
+  if (sel && inCat(sel)) $('pick').value = sel.code;
   strip.scrollLeft = keep ? sl : 0; requestAnimationFrame(nudgeState);
 }
 const strip = $('strip');
+// the tile bar can be shrunk (16 Nov 2026): it scales from 100% down to 55%, and below 78% drops the stock counters and labels
+let dz = Math.min(1, Math.max(0.55, +(store.get('tf-dock') || 1)));
+function setDock(v){ dz = Math.round(Math.min(1, Math.max(0.55, v)) * 100) / 100; document.documentElement.style.setProperty('--dz', dz);
+  document.querySelector('.dock').classList.toggle('compact', dz < 0.78); $('dock-grip').setAttribute('aria-valuenow', String(Math.round(dz * 100))); store.set('tf-dock', dz); }
+{ const g = $('dock-grip'); let y0 = 0, z0 = 1, h0 = 1;
+  g.addEventListener('pointerdown', e => { y0 = e.clientY; z0 = dz; h0 = document.querySelector('.dock').getBoundingClientRect().height; g.setPointerCapture(e.pointerId); g.classList.add('on'); e.preventDefault(); });
+  g.addEventListener('pointermove', e => { if (!g.classList.contains('on')) return; setDock(z0 * (h0 - (e.clientY - y0)) / h0); });
+  const end = () => g.classList.remove('on'); g.addEventListener('pointerup', end); g.addEventListener('pointercancel', end);
+  g.addEventListener('dblclick', () => setDock(dz < 1 ? 1 : 0.6));
+  g.addEventListener('keydown', e => { if (e.key === 'ArrowUp'){ setDock(dz + 0.05); e.preventDefault(); } if (e.key === 'ArrowDown'){ setDock(dz - 0.05); e.preventDefault(); } }); }
+setDock(dz);
 function nudgeState(){ $('nudge-l').disabled = strip.scrollLeft <= 2; $('nudge-r').disabled = strip.scrollLeft + strip.clientWidth >= strip.scrollWidth - 2; }
 $('nudge-l').onclick = () => strip.scrollBy({ left:-strip.clientWidth*0.8, behavior:'smooth' });
 $('nudge-r').onclick = () => strip.scrollBy({ left:strip.clientWidth*0.8, behavior:'smooth' });
@@ -1628,6 +2025,8 @@ strip.addEventListener('scroll', nudgeState, { passive:true });
 strip.addEventListener('wheel', e => { if (Math.abs(e.deltaY) > Math.abs(e.deltaX)){ strip.scrollLeft += e.deltaY; e.preventDefault(); } }, { passive:false });
 new ResizeObserver(nudgeState).observe(strip);
 $('strip').addEventListener('click', e => {
+  const fv = e.target.closest('[data-fav]');
+  if (fv){ const c = fv.dataset.fav; favs.has(c) ? favs.delete(c) : favs.add(c); store.set('tf-favs', [...favs]); renderPalette(true); toast(favs.has(c) ? `${c} added to favourites` : `${c} removed from favourites`, 'info'); return; }
   const b = e.target.closest('[data-own]'); if (!b) return;
   e.stopPropagation();
   const c = b.dataset.code; owned[c] = Math.max(0, (owned[c] || 0) + Number(b.dataset.own)); if (!owned[c]) delete owned[c];
@@ -1635,8 +2034,12 @@ $('strip').addEventListener('click', e => {
 }, true);
 $('f-lava').onclick = () => setFluid('lava');
 $('f-water').onclick = () => setFluid('water');
-$('subs').addEventListener('click', e => { const b = e.target.closest('[data-sub]'); if (!b) return; sub = b.dataset.sub || null; renderPalette(); });
-$('cats').addEventListener('click', e => { const b = e.target.closest('[data-cat]'); if (!b) return; cat = b.dataset.cat; sub = null; fitSet = null; renderPalette(); computeFits(); if (cat === FLUIDTAB) tip('fluid'); });
+$('subs').addEventListener('click', e => { const b = e.target.closest('[data-sub]'); if (!b) return;
+  const g = b.dataset.sub, s = subsOf(), all = [...document.querySelectorAll('#subs [data-sub]')].map(x => x.dataset.sub).filter(Boolean);
+  if (!g) s.clear(); else if (s.has(g)) s.delete(g); else s.add(g);
+  if (s.size >= all.length) s.clear();                 // every group picked is the same as All
+  setSubs(s); renderPalette(); });
+$('cats').addEventListener('click', e => { const b = e.target.closest('[data-cat]'); if (!b) return; cat = b.dataset.cat; fitSet = null; renderPalette(); computeFits(); if (cat === FLUIDTAB) tip('fluid'); });
 $('pick').addEventListener('change', e => {
   const m = BY[e.target.value]; if (!m) return; choose(m);
   const card = document.querySelector(`.card[data-code="${m.code}"]`); if (card) card.scrollIntoView({ behavior:'smooth', inline:'center', block:'nearest' });
@@ -1680,8 +2083,23 @@ $('strip').addEventListener('click', e => { if (e.detail !== 0) return; const ca
 /* ---------- board interaction ---------- */
 const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
 function setRay(x, y){ const b = canvas.getBoundingClientRect(); if (x < b.left || x > b.right || y < b.top || y > b.bottom) return false; ndc.set(((x-b.left)/b.width)*2-1, -((y-b.top)/b.height)*2+1); ray.setFromCamera(ndc, camera); return true; }
+const snapPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), snapPt = new THREE.Vector3();
 function cellAt(x, y){
   if (!sel || !setRay(x, y)) return null;
+  if (sel.acc && sel.holes && sel.holes.length){      // accessories lock to sockets: the one under the pointer takes the first hole that fits there (16 Nov 2026)
+    // aim at the tops under the pointer, highest first: the tile or deck the pointer is on, then every other top height on the map, then the board.
+    // The first height where the pointer lands on a free socket wins, so pointing at a deck edge still finds the deck's socket (16 Nov 2026)
+    const hit = ray.intersectObjects(blocks.filter(b => !BY[b.code].acc).map(b => meshes.get(b.id)))[0], hb_ = hit && blocks.find(b => b.id === hit.object.userData.id);
+    const tops = [...new Set(blocks.filter(b => !BY[b.code].acc && !isFluid(b.code)).map(b => hb(b) + tallOf(BY[b.code])))].sort((a, b) => b - a);
+    const order = [...(hb_ ? [hb(hb_) + tallOf(BY[hb_.code])] : []), 0, ...tops];   // pointing at the board itself: its own sockets before any deck nearby
+    let first = null;
+    for (const h of order){
+      snapPlane.constant = -(h * LV/2); if (!ray.ray.intersectPlane(snapPlane, snapPt)) continue;
+      const gx = Math.round(snapPt.x/P), gz = Math.round(snapPt.z/P);
+      for (const [hx, hz] of holesOf(sel, 0, 0, rot)){ const c = gx - hx, r = gz - hz; if (!first) first = { c, r }; const res = check(sel, c, r, rot, level, half); if (res.ok && Math.round(res.lvl*2) === h) return { c, r }; }
+    }
+    return first;
+  }
   const hit = ray.intersectObject(plane)[0]; if (!hit) return null;
   const [w,h] = foot(sel, rot);
   return { c:Math.round(hit.point.x/P - w/2), r:Math.round(hit.point.z/P - h/2) };
@@ -1691,32 +2109,37 @@ function blockAt(x, y){
   const vis = blocks.filter(b => onLevel(b, level)).map(b => meshes.get(b.id));
   const hit = ray.intersectObjects(vis)[0]; return hit ? blocks.find(b => b.id === hit.object.userData.id) : null;
 }
-function squareAt(x, y, any){
+const dragPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0), dragPt = new THREE.Vector3();
+function squareAt(x, y, any, atY){
   if (!setRay(x, y)) return null;
-  const hit = ray.intersectObject(plane)[0]; if (!hit) return null;
-  const c = Math.floor(hit.point.x / P), r = Math.floor(hit.point.z / P);
+  let pt;
+  if (atY !== undefined){ dragPlane.constant = -atY; pt = ray.ray.intersectPlane(dragPlane, dragPt); }   // a dragged tile follows the pointer at its own height, not the board floor (16 Nov 2026)
+  else { const hit = ray.intersectObject(plane)[0]; pt = hit && hit.point; }
+  if (!pt) return null;
+  const c = Math.floor(pt.x / P), r = Math.floor(pt.z / P);
   return (any || inBoard(c, r)) ? { c, r } : null;
 }
 function place(c, r){
   dropPending();
   if (stockStop(sel)) return;
-  const res = check(sel, c, r, rot, level);
+  const res = check(sel, c, r, rot, level, half);
   if (!res.ok){
-    const on = cellsOf(sel, c, r, rot).some(([x,z]) => inBoard(x, z));
+    const on = sel.acc && sel.holes ? holesOf(sel, c, r, rot).some(([x,z]) => inBoard(x, z) || inBoard(x-1, z-1)) : cellsOf(sel, c, r, rot).some(([x,z]) => inBoard(x, z));
     if (!on){ toast(res.why); return; }
-    // it can be put down to turn into place, but only if one of its turns would fit right here (15 Nov 2026)
+    // it lands anyway (16 Nov 2026): flashing, not locked in, so it can be turned or dragged into place. It becomes a real tile once it fits,
+    // and goes if another tile is placed first. A one-socket accessory turns about its socket.
     const turns = [1, 2, 3].map(k => (rot + k) % 4).filter(q => check(sel, c, r, q, level).ok);
-    if (!turns.length){ toast(`${res.why} It won’t fit here in any turn.`); return; }
-    const m = sel; selectTile(null, true); setPending({ code:m.code, c, r, rot, level, fitsAt:turns }, res.why); return;
+    const m = sel, h45 = half && turns45(m) ? 1 : 0; selectTile(null, true);
+    setPending({ code:m.code, c, r, rot, level: m.acc ? res.lvl : level, fitsAt:turns, ...(h45 ? { t45:1 } : {}) }, res.why); return;
   }
-  const b = { id:nextId++, code:sel.code, c, r, rot, level:res.lvl };
+  const b = { id:nextId++, code:sel.code, c, r, rot, level:res.lvl, ...(half && turns45(sel) ? { t45:1 } : {}) };
   addBlock(b); pickBlock(b.id, true); tip('placed');
 }
 let hover = null, down = null, lastTap = null, turnT = 0;
 function duplicate(b){
   const m = BY[b.code]; if (stockStop(m)) return;
   pickBlock(null, true); setCursor(null); rot = b.rot;
-  if (catOf(m) !== cat || (sub && groupOf(m) !== sub)){ cat = catOf(m); sub = null; renderPalette(); }
+  if (!inCat(m) || (subsOf().size && !subsOf().has(grpOf(m)))){ if (!inCat(m)) cat = catOf(m); const s = subsOf(); if (s.size) { s.add(grpOf(m)); setSubs(s); } renderPalette(); }
   selectTile(m); toast(`Copy of ${b.code} ready. Click where it should go.`, 'info');
 }
 /* a tile that doesn't fit yet: shown red where it was put, so it can be rotated or dragged into a spot that works.
@@ -1728,24 +2151,28 @@ function showPending(){
   if (!pending){ pendMesh.visible = false; return; }
   const m = BY[pending.code], [w, h] = foot(m, pending.rot);
   pendMesh.geometry = geos[pending.code]; pendMesh.rotation.y = -pending.rot * Math.PI/2;
-  pendMesh.position.set((pending.c + w/2)*P, pending.level*LV + 0.3, (pending.r + h/2)*P); pendMesh.visible = true;
+  pendMesh.position.set((pending.c + w/2)*P, pending.level*LV + 0.3, (pending.r + h/2)*P);
+  if (pending.t45 && turns45(m)) spin45(pendMesh, m, pending.c, pending.r, pending.rot);
+  pendMesh.visible = true;
 }
 function setPending(p, why){
   tip('red');
   pickBlock(null, true); setCursor(null); hideGhost();
   pending = p; showPending();
   const n = p.fitsAt && p.fitsAt.length ? ((p.fitsAt[0] - p.rot + 4) % 4) : 0;
-  hint(`Doesn’t fit yet: ${why || 'it overlaps another tile.'} ${n ? `It fits if you turn it ${n === 1 ? 'once' : n === 2 ? 'twice' : 'three times'}: ` : ''}click it or press ${KN('turn')} to rotate, or drag it. It goes if you place another tile first.`, 'bad');
+  hint(`Doesn’t fit yet: ${why || 'it overlaps another tile.'} ${n ? `It fits if you turn it ${n === 1 ? 'once' : n === 2 ? 'twice' : 'three times'}: ` : 'No turn fits on this spot, so turn it, drag it, or change what’s under it: '}click it or press ${KN('turn')} to rotate, or drag it. It goes if you place another tile first.`, 'bad');
 }
 function settle(){                                      // fits now? make it a real tile
-  const p = pending, res = check(BY[p.code], p.c, p.r, p.rot, p.level);
+  const p = pending, res = check(BY[p.code], p.c, p.r, p.rot, p.level, p.t45);
   if (!res.ok){ showPending(); hint(`Still doesn’t fit: ${res.why} Rotate or drag it.`, 'bad'); return false; }
   pending = null; pendMesh.visible = false;
-  const nb = { id:p.from ? p.from.id : nextId++, code:p.code, c:p.c, r:p.r, rot:p.rot, level:res.lvl };
+  const nb = { id:p.from ? p.from.id : nextId++, code:p.code, c:p.c, r:p.r, rot:p.rot, level:res.lvl, ...(p.t45 ? { t45:1 } : {}) };
   addBlock(nb, false); undo.push(p.from ? { op:'swap', before:p.from, after:nb } : { op:'add', b:nb }); changed(); pickBlock(nb.id); rot = nb.rot;
   idleHint(); return true;
 }
-function turnPending(){ if (!pending) return; pending.rot = (pending.rot + 1) % 4; settle(); }
+function turnPending(){ if (!pending) return; const m = BY[pending.code];
+  if (oneSocket(m)){ const s = stepInPlace(m, pending.c, pending.r, pending.rot, pending.t45); Object.assign(pending, { c:s.c, r:s.r, rot:s.rot, t45:s.t45 }); } else pending.rot = (pending.rot + 1) % 4;
+  settle(); }
 function dropPending(){                                 // moving on: a tile that still doesn't fit isn't kept
   if (!pending) return;
   const p = pending; pending = null; pendMesh.visible = false;
@@ -1763,10 +2190,11 @@ addEventListener('pointercancel', e => { if (holdView === e.pointerId){ holdView
 const dragMat = new THREE.MeshStandardMaterial({ color:0x4ade80, emissive:0x4ade80, emissiveIntensity:0.45, transparent:true, opacity:0.6, flatShading:true, depthWrite:false });
 const dragMesh = new THREE.Mesh(new THREE.BufferGeometry(), dragMat); dragMesh.visible = false; scene.add(dragMesh);
 stage.addEventListener('pointerdown', e => {
-  if (e.target !== canvas || view || erase || arrange || placing || boardFocus() || e.button > 0) return;
-  if (!sel && pendHit(e.clientX, e.clientY)){
-    const sq = squareAt(e.clientX, e.clientY, true); if (!sq) return;
-    tdrag = { b:pending, pend:true, dc:sq.c - pending.c, dr:sq.r - pending.r, on:false, x:e.clientX, y:e.clientY, id:e.pointerId };
+  if (e.target !== canvas || view || erase || arrange || placing || selMode || boardFocus() || e.button > 0) return;
+  if (pendHit(e.clientX, e.clientY)){               // a flashing tile can always be grabbed, even with a tile in hand (16 Nov 2026)
+    const sq = squareAt(e.clientX, e.clientY, true, pending.level*LV); if (!sq) return;
+    hideGhost();
+    tdrag = { b:pending, pend:true, hy:pending.level*LV, dc:sq.c - pending.c, dr:sq.r - pending.r, on:false, x:e.clientX, y:e.clientY, id:e.pointerId };
     controls.enabled = false; return;
   }
   const b = blockAt(e.clientX, e.clientY); if (!b) return;
@@ -1774,13 +2202,13 @@ stage.addEventListener('pointerdown', e => {
   if (sel && b.id !== picked) return;
   if (supporting(b)){                                // tiles holding up others stay put
     if (b.id === picked){                            // pressing on the selected tile never turns the view
-      hint(`${b.code} is holding up the tile on top of it. Move or remove that one first.`, 'bad');
+      hint(`${b.code} has something on it, so it can’t be dragged. Click it to turn it, or move what’s on it first.`, 'bad');
       controls.enabled = false; holdView = e.pointerId;
     }
     return;
   }
-  const sq = squareAt(e.clientX, e.clientY, true); if (!sq) return;
-  tdrag = { b, dc:sq.c - b.c, dr:sq.r - b.r, on:false, x:e.clientX, y:e.clientY, id:e.pointerId };
+  const sq = squareAt(e.clientX, e.clientY, true, b.level*LV); if (!sq) return;
+  tdrag = { b, hy:b.level*LV, dc:sq.c - b.c, dr:sq.r - b.r, on:false, x:e.clientX, y:e.clientY, id:e.pointerId };
   controls.enabled = false;                          // this drag moves the tile, not the camera
 }, { capture:true });
 function tdragMove(e){
@@ -1790,10 +2218,10 @@ function tdragMove(e){
     tdrag.on = true; if (tdrag.pend) pendMesh.visible = false; else { dropPending(); removeBlock(tdrag.b.id, false); } pickBlock(null, true); setCursor(null);
     dragMesh.geometry = geos[tdrag.b.code]; dragMesh.rotation.y = -tdrag.b.rot * Math.PI/2; dragMesh.visible = true;
   }
-  const sq = squareAt(e.clientX, e.clientY, true); if (!sq) return;
+  const sq = squareAt(e.clientX, e.clientY, true, tdrag.hy); if (!sq) return;
   const b = tdrag.b, m = BY[b.code], [w, h] = foot(m, b.rot), c = sq.c - tdrag.dc, r = sq.r - tdrag.dr;
   const cs = cellsOf(m, c, r, b.rot), onCount = cs.filter(([x,z]) => inBoard(x, z)).length;
-  const res = check(m, c, r, b.rot, b.level);
+  const res = check(m, c, r, b.rot, b.level, b.t45);
   Object.assign(tdrag, { c, r, ok:res.ok, why:res.why, lvl:res.lvl, off:onCount === 0 });
   dragMesh.position.set((c + w/2)*P, res.lvl*LV + 0.5, (r + h/2)*P);
   const col = new THREE.Color(css(res.ok ? '--ok' : '--bad')); dragMat.color.copy(col); dragMat.emissive.copy(col);
@@ -1818,7 +2246,9 @@ function tdragEnd(e){
 addEventListener('pointermove', tdragMove);
 addEventListener('pointercancel', e => { if (tdrag && e.pointerId === tdrag.id){ const t = tdrag; tdrag = null; controls.enabled = true; dragMesh.visible = false; if (t.on){ if (t.pend) showPending(); else addBlock(t.b, false); } } });
 canvas.addEventListener('pointerdown', e => { down = { x:e.clientX, y:e.clientY }; $('colour-pop').hidden = true; });
+let ptrXY = null;      // the last pointer position over the board, so an accessory turns about the socket you're pointing at
 canvas.addEventListener('pointermove', e => {
+  ptrXY = [e.clientX, e.clientY];
   if (placing){ const sq = squareAt(e.clientX, e.clientY, true); if (sq) aimBoard(sq.c, sq.r); return; }
   if (tdrag) return;
   if (drag || e.pointerType !== 'mouse' || view || arrange) return;
@@ -1834,6 +2264,7 @@ canvas.addEventListener('pointerleave', () => { if (!drag && !matchMedia('(point
 canvas.addEventListener('pointerup', e => {
   if (bdragEnd(e)) return;
   if (tdragEnd(e)) return;
+  if (selMode) return;                              // select mode handles its own clicks
   if (!down || Math.hypot(e.clientX-down.x, e.clientY-down.y) > 6 || view) return;
   if (placing){
     const sq = squareAt(e.clientX, e.clientY, true); if (!sq) return;
@@ -1856,7 +2287,7 @@ canvas.addEventListener('pointerup', e => {
   // otherwise stack a new one on top. Castle pieces are symmetrical, so they still stack straight away (14 Nov 2026).
   const turnFirst = hitB && hitB.id === picked && !/^P2/.test(hitB.code);
   if (turnFirst && sel){ hideGhost(); turnBlock(hitB); return; }   // keep the tile in hand, so placing carries on after the turn
-  if (hitB && (!sel || !ghostAt || !ghostAt.ok)){
+  if (hitB && !sel){                                 // with a tile in hand a click always sets it down, flashing if it doesn't fit yet (16 Nov 2026)
     selectTile(null, true); hideGhost();
     const now = performance.now();
     if (lastTap && lastTap.id === hitB.id && now - lastTap.t < 320){ clearTimeout(turnT); lastTap = null; duplicate(hitB); return; }
@@ -1874,19 +2305,31 @@ canvas.addEventListener('pointerup', e => {
   const cell = cellAt(e.clientX, e.clientY); if (!cell) return;
   if (e.pointerType === 'mouse'){ place(cell.c, cell.r); showGhost(cell.c, cell.r); return; }
   // touch: first tap previews (pulsing), second tap on the same spot places
-  if (ghostAt && ghostAt.c === cell.c && ghostAt.r === cell.r && ghostAt.ok){ place(cell.c, cell.r); hideGhost(); idleHint(); return; }
+  if (ghostAt && ghostAt.c === cell.c && ghostAt.r === cell.r){ place(cell.c, cell.r); hideGhost(); idleHint(); return; }   // a second tap sets it down even if it doesn't fit yet
   const res = showGhost(cell.c, cell.r);
   $('place-btn').hidden = !(res && res.ok);
+  if (res && res.ok) $('hint').hidden = false;          // the Place button lives in the hint bar
 });
 $('place-btn').onclick = () => { if (ghostAt && ghostAt.ok){ place(ghostAt.c, ghostAt.r); hideGhost(); idleHint(); } };
 
 /* ---------- loop ---------- */
 const clock = new THREE.Clock();
+// draw only when something can have changed (17 Nov 2026): input, the view easing to a stop, a flashing or previewed tile, or a change to the map.
+// Idle, it redraws once a second as a safety net, and not at all in a hidden tab. Saves the battery on phones and tablets.
+var wakeUntil = 0, lastDraw = 0, lastInput = 0;     // var: changed() may run before this line during start-up
+function wake(ms = 700){ wakeUntil = Math.max(wakeUntil, performance.now() + ms); lastInput = performance.now(); }
+['pointerdown', 'pointermove', 'pointerup', 'wheel', 'keydown', 'keyup', 'resize', 'touchmove'].forEach(ev => addEventListener(ev, () => wake(), { passive:true, capture:true }));
+const FLASH_IDLE = 10000;   // previews and flashing pieces stop pulsing after 10 s with no input, and hold steady until you do something (17 Nov 2026)
 (function tick(){
-  const t = clock.getElapsedTime();
-  if (ghost.visible){ ghostMat.opacity = 0.4 + 0.25*Math.sin(t*6); padMat.opacity = 0.25 + 0.2*Math.sin(t*6); }
-  if (pendMesh.visible){ const k = 0.5 + 0.5*Math.sin(t*7); pendMat.opacity = 0.35 + 0.5*k; pendMat.emissiveIntensity = 0.2 + 0.7*k; }   // a tile that doesn't fit yet keeps flashing
-  controls.update(); renderer.render(scene, camera); requestAnimationFrame(tick);
+  requestAnimationFrame(tick);
+  if (document.hidden) return;
+  const t = clock.getElapsedTime(), now = performance.now();
+  const pulse = now - lastInput < FLASH_IDLE, held = !pulse && lastDraw < lastInput + FLASH_IDLE;   // held: the one frame that settles them
+  if (ghost.visible){ const k = pulse ? Math.sin(t*6) : 0.6; ghostMat.opacity = 0.4 + 0.25*k; padMat.opacity = 0.25 + 0.2*k; }
+  if (pendMesh.visible){ const k = pulse ? 0.5 + 0.5*Math.sin(t*7) : 0.8; pendMat.opacity = 0.35 + 0.5*k; pendMat.emissiveIntensity = 0.2 + 0.7*k; }   // a tile that doesn't fit yet keeps flashing
+  const moving = controls.update(), anim = pulse && (ghost.visible || pendMesh.visible);
+  if (!(moving || anim || held || now < wakeUntil || now - lastDraw > 1000)) return;
+  lastDraw = now; renderer.render(scene, camera);
 })();
 
 /* ---------- boot ---------- */
@@ -1904,7 +2347,7 @@ function applyMap(map, first){
   boards = (map.boards && map.boards.length) ? map.boards.map(b => ({ ...b })) : [{ x:0, z:0, w:map.W || 12, l:map.L || 8 }]; selBoard = 0;
   $('map-name').value = map.name || 'Untitled map';
   buildBoard();
-  for (const b0 of map.blocks || []){ const b = unmirror({ ...b0, code:ALIAS(b0.code) }); if (BY[b.code]) addBlock({ code:b.code, c:b.c, r:b.r, rot:b.rot, level:b.level, id:nextId++ }, false); }
+  for (const b0 of map.blocks || []){ const b = unmirror({ ...b0, code:ALIAS(b0.code) }); if (BY[b.code]) addBlock({ code:b.code, c:b.c, r:b.r, rot:b.rot, level:b.level, ...(b.t45 ? { t45:1 } : {}), id:nextId++ }, false); }
   undo.length = 0;
   if (!first){ frame(); changed(); }
 }
@@ -1914,8 +2357,8 @@ const DS = { db:null, uid:null, user:null, mine:[], shared:[], tab:'mine', unsub
 const slug = t => (t || 'untitled').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'untitled';
 const esc = t => String(t).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[c]);
 function snapshotMap(){
-  return { name:($('map-name').value || 'Untitled map').trim().slice(0, 80), boards:boards.map(b => ({ x:b.x, z:b.z, w:b.w, l:b.l })),
-    blocks:blocks.map(b => ({ code:b.code, c:b.c, r:b.r, rot:b.rot, level:b.level })), colour, fluid:fluidMode, at:Date.now() };
+  return { name:($('map-name').value || 'Untitled map').trim().slice(0, 80), boards:boards.map(b => ({ x:b.x, z:b.z, w:b.w, l:b.l, ...(b.fin && b.fin !== 'mdf' ? { fin:b.fin } : {}) })),
+    blocks:blocks.map(b => ({ code:b.code, c:b.c, r:b.r, rot:b.rot, level:b.level, ...(b.t45 ? { t45:1 } : {}) })), colour, fluid:fluidMode, at:Date.now() };
 }
 const summary = d => {
   const area = (d.boards || []).reduce((a, b) => a + b.w * b.l, 0);
@@ -1970,7 +2413,7 @@ function watchDesigns(){
 }
 function note(t){ $('ds-note').textContent = t; }
 let names = {};
-const BUILTIN = [{"id": "lava-caldera", "uid": "terraform", "name": "Caldera: angled outside corners", "boards": [{"x": 0, "z": 0, "w": 12, "l": 8}, {"x": 0, "z": 8, "w": 12, "l": 8}], "blocks": [{"code": "P4034", "c": 1, "r": 10, "rot": 0, "level": 0}, {"code": "P4031", "c": 1, "r": 8, "rot": 0, "level": 0}, {"code": "P4003", "c": 0, "r": 6, "rot": 0, "level": 0}, {"code": "P4004", "c": 0, "r": 4, "rot": 0, "level": 0}, {"code": "P4036", "c": 1, "r": 1, "rot": 1, "level": 0}, {"code": "P4001", "c": 4, "r": 0, "rot": 1, "level": 0}, {"code": "P4002", "c": 6, "r": 0, "rot": 1, "level": 0}, {"code": "P4036", "c": 8, "r": 1, "rot": 2, "level": 0}, {"code": "P4003", "c": 10, "r": 4, "rot": 2, "level": 0}, {"code": "P4001", "c": 10, "r": 6, "rot": 2, "level": 0}, {"code": "P4035", "c": 9, "r": 8, "rot": 2, "level": 0}, {"code": "P4011", "c": 9, "r": 9, "rot": 2, "level": 0}, {"code": "P4032", "c": 9, "r": 10, "rot": 2, "level": 0}, {"code": "P4012", "c": 10, "r": 11, "rot": 2, "level": 0}, {"code": "P4036", "c": 8, "r": 12, "rot": 3, "level": 0}, {"code": "P4004", "c": 6, "r": 14, "rot": 3, "level": 0}, {"code": "P4006", "c": 4, "r": 14, "rot": 3, "level": 0}, {"code": "P4036", "c": 1, "r": 12, "rot": 0, "level": 0}, {"code": "P4033", "c": 6, "r": 5, "rot": 0, "level": 0}, {"code": "P4033", "c": 4, "r": 5, "rot": 3, "level": 0}, {"code": "P4033", "c": 4, "r": 7, "rot": 2, "level": 0}, {"code": "P4033", "c": 6, "r": 7, "rot": 1, "level": 0}, {"code": "P4041", "c": 5, "r": 11, "rot": 0, "level": 0}, {"code": "P4047", "c": 7, "r": 12, "rot": 0, "level": 0}, {"code": "P4136", "c": 2, "r": 2, "rot": 1, "level": 0}, {"code": "P4136", "c": 8, "r": 2, "rot": 2, "level": 0}, {"code": "P4136", "c": 8, "r": 12, "rot": 3, "level": 0}, {"code": "P4136", "c": 2, "r": 12, "rot": 0, "level": 0}, {"code": "P4134", "c": 1, "r": 10, "rot": 0, "level": 0}, {"code": "P4131", "c": 1, "r": 8, "rot": 0, "level": 0}, {"code": "P4135", "c": 8, "r": 8, "rot": 2, "level": 0}, {"code": "P4132", "c": 8, "r": 10, "rot": 2, "level": 0}, {"code": "P4133", "c": 6, "r": 5, "rot": 0, "level": 0}, {"code": "P4133", "c": 4, "r": 5, "rot": 3, "level": 0}, {"code": "P4133", "c": 4, "r": 7, "rot": 2, "level": 0}, {"code": "P4133", "c": 6, "r": 7, "rot": 1, "level": 0}, {"code": "P4101", "c": 2, "r": 6, "rot": 0, "level": 0}, {"code": "P4101", "c": 2, "r": 4, "rot": 0, "level": 0}, {"code": "P4101", "c": 4, "r": 2, "rot": 1, "level": 0}, {"code": "P4101", "c": 6, "r": 2, "rot": 1, "level": 0}, {"code": "P4101", "c": 9, "r": 4, "rot": 2, "level": 0}, {"code": "P4101", "c": 9, "r": 6, "rot": 2, "level": 0}, {"code": "P4103", "c": 8, "r": 9, "rot": 2, "level": 0}, {"code": "P4103", "c": 9, "r": 11, "rot": 2, "level": 0}, {"code": "P4101", "c": 6, "r": 13, "rot": 3, "level": 0}, {"code": "P4101", "c": 4, "r": 13, "rot": 3, "level": 0}, {"code": "P4114", "c": 4, "r": 3, "rot": 0, "level": 0}, {"code": "P4114", "c": 6, "r": 3, "rot": 0, "level": 0}, {"code": "P4112", "c": 3, "r": 4, "rot": 0, "level": 0}, {"code": "P4112", "c": 8, "r": 4, "rot": 0, "level": 0}, {"code": "P4112", "c": 3, "r": 6, "rot": 0, "level": 0}, {"code": "P4112", "c": 8, "r": 6, "rot": 0, "level": 0}, {"code": "P4112", "c": 3, "r": 8, "rot": 0, "level": 0}, {"code": "P4114", "c": 4, "r": 9, "rot": 0, "level": 0}, {"code": "P4114", "c": 6, "r": 9, "rot": 0, "level": 0}, {"code": "P4112", "c": 3, "r": 10, "rot": 0, "level": 0}, {"code": "P4112", "c": 4, "r": 11, "rot": 0, "level": 0}, {"code": "P4112", "c": 6, "r": 11, "rot": 1, "level": 0}, {"code": "P4111", "c": 8, "r": 11, "rot": 0, "level": 0}, {"code": "P4112", "c": 5, "r": 12, "rot": 1, "level": 0}], "at": 9200000000000000.0},{"id": "lava-horseshoe", "uid": "terraform", "name": "Horseshoe: angled bends", "boards": [{"x": 0, "z": 0, "w": 12, "l": 8}, {"x": 0, "z": 8, "w": 12, "l": 8}], "blocks": [{"code": "P4001", "c": 4, "r": 0, "rot": 2, "level": 0}, {"code": "P4003", "c": 4, "r": 2, "rot": 2, "level": 0}, {"code": "P4004", "c": 4, "r": 4, "rot": 2, "level": 0}, {"code": "P4002", "c": 4, "r": 6, "rot": 2, "level": 0}, {"code": "P4033", "c": 4, "r": 8, "rot": 2, "level": 0}, {"code": "P4033", "c": 6, "r": 8, "rot": 1, "level": 0}, {"code": "P4003", "c": 6, "r": 6, "rot": 0, "level": 0}, {"code": "P4001", "c": 6, "r": 4, "rot": 0, "level": 0}, {"code": "P4006", "c": 6, "r": 2, "rot": 0, "level": 0}, {"code": "P4004", "c": 6, "r": 0, "rot": 0, "level": 0}, {"code": "P4002", "c": 10, "r": 0, "rot": 2, "level": 0}, {"code": "P4001", "c": 10, "r": 2, "rot": 2, "level": 0}, {"code": "P4004", "c": 10, "r": 4, "rot": 2, "level": 0}, {"code": "P4003", "c": 10, "r": 6, "rot": 2, "level": 0}, {"code": "P4006", "c": 10, "r": 8, "rot": 2, "level": 0}, {"code": "P4011", "c": 10, "r": 10, "rot": 2, "level": 0}, {"code": "P4036", "c": 8, "r": 11, "rot": 3, "level": 0}, {"code": "P4032", "c": 7, "r": 13, "rot": 3, "level": 0}, {"code": "P4002", "c": 5, "r": 14, "rot": 3, "level": 0}, {"code": "P4035", "c": 4, "r": 13, "rot": 3, "level": 0}, {"code": "P4036", "c": 1, "r": 11, "rot": 0, "level": 0}, {"code": "P4012", "c": 0, "r": 10, "rot": 0, "level": 0}, {"code": "P4001", "c": 0, "r": 8, "rot": 0, "level": 0}, {"code": "P4003", "c": 0, "r": 6, "rot": 0, "level": 0}, {"code": "P4004", "c": 0, "r": 4, "rot": 0, "level": 0}, {"code": "P4002", "c": 0, "r": 2, "rot": 0, "level": 0}, {"code": "P4006", "c": 0, "r": 0, "rot": 0, "level": 0}, {"code": "P4136", "c": 8, "r": 11, "rot": 3, "level": 0}, {"code": "P4136", "c": 2, "r": 11, "rot": 0, "level": 0}, {"code": "P4133", "c": 4, "r": 8, "rot": 2, "level": 0}, {"code": "P4133", "c": 6, "r": 8, "rot": 1, "level": 0}, {"code": "P4132", "c": 7, "r": 12, "rot": 3, "level": 0}, {"code": "P4135", "c": 4, "r": 12, "rot": 3, "level": 0}, {"code": "P4101", "c": 3, "r": 0, "rot": 2, "level": 0}, {"code": "P4101", "c": 3, "r": 2, "rot": 2, "level": 0}, {"code": "P4101", "c": 3, "r": 4, "rot": 2, "level": 0}, {"code": "P4101", "c": 3, "r": 6, "rot": 2, "level": 0}, {"code": "P4101", "c": 8, "r": 6, "rot": 0, "level": 0}, {"code": "P4101", "c": 8, "r": 4, "rot": 0, "level": 0}, {"code": "P4101", "c": 8, "r": 2, "rot": 0, "level": 0}, {"code": "P4101", "c": 8, "r": 0, "rot": 0, "level": 0}, {"code": "P4101", "c": 9, "r": 0, "rot": 2, "level": 0}, {"code": "P4101", "c": 9, "r": 2, "rot": 2, "level": 0}, {"code": "P4101", "c": 9, "r": 4, "rot": 2, "level": 0}, {"code": "P4101", "c": 9, "r": 6, "rot": 2, "level": 0}, {"code": "P4101", "c": 9, "r": 8, "rot": 2, "level": 0}, {"code": "P4103", "c": 9, "r": 10, "rot": 2, "level": 0}, {"code": "P4101", "c": 5, "r": 13, "rot": 3, "level": 0}, {"code": "P4103", "c": 2, "r": 10, "rot": 0, "level": 0}, {"code": "P4101", "c": 2, "r": 8, "rot": 0, "level": 0}, {"code": "P4101", "c": 2, "r": 6, "rot": 0, "level": 0}, {"code": "P4101", "c": 2, "r": 4, "rot": 0, "level": 0}, {"code": "P4101", "c": 2, "r": 2, "rot": 0, "level": 0}, {"code": "P4101", "c": 2, "r": 0, "rot": 0, "level": 0}, {"code": "P4112", "c": 3, "r": 8, "rot": 0, "level": 0}, {"code": "P4112", "c": 8, "r": 8, "rot": 0, "level": 0}, {"code": "P4112", "c": 3, "r": 10, "rot": 1, "level": 0}, {"code": "P4114", "c": 5, "r": 10, "rot": 0, "level": 0}, {"code": "P4112", "c": 7, "r": 10, "rot": 1, "level": 0}, {"code": "P4111", "c": 4, "r": 11, "rot": 0, "level": 0}, {"code": "P4111", "c": 7, "r": 11, "rot": 0, "level": 0}, {"code": "P4112", "c": 5, "r": 12, "rot": 1, "level": 0}], "at": 9200000000000000.0},{"id": "lava-river", "uid": "terraform", "name": "Lava river: every piece", "boards": [{"x": 0, "z": 0, "w": 12, "l": 12}], "blocks": [{"code": "P4022", "c": 1, "r": 10, "rot": 0, "level": 0}, {"code": "P4001", "c": 1, "r": 8, "rot": 0, "level": 0}, {"code": "P4003", "c": 1, "r": 6, "rot": 0, "level": 0}, {"code": "P4031", "c": 1, "r": 4, "rot": 0, "level": 0}, {"code": "P4004", "c": 0, "r": 2, "rot": 0, "level": 0}, {"code": "P4002", "c": 0, "r": 0, "rot": 0, "level": 0}, {"code": "P2012", "c": 0, "r": 10, "rot": 3, "level": 0}, {"code": "P2012", "c": 0, "r": 8, "rot": 3, "level": 0}, {"code": "P2012", "c": 0, "r": 6, "rot": 3, "level": 0}, {"code": "P2012", "c": 0, "r": 4, "rot": 3, "level": 0}, {"code": "P4123", "c": 3, "r": 9, "rot": 0, "level": 0}, {"code": "P4103", "c": 3, "r": 8, "rot": 0, "level": 0}, {"code": "P4101", "c": 3, "r": 6, "rot": 0, "level": 0}, {"code": "P4131", "c": 1, "r": 4, "rot": 0, "level": 0}, {"code": "P4101", "c": 2, "r": 2, "rot": 0, "level": 0}, {"code": "P4101", "c": 2, "r": 0, "rot": 0, "level": 0}, {"code": "P4006", "c": 3, "r": 10, "rot": 3, "level": 0}, {"code": "P4011", "c": 5, "r": 10, "rot": 3, "level": 0}, {"code": "P4012", "c": 6, "r": 10, "rot": 3, "level": 0}, {"code": "P4001", "c": 7, "r": 10, "rot": 3, "level": 0}, {"code": "P4003", "c": 9, "r": 10, "rot": 3, "level": 0}, {"code": "P4011", "c": 11, "r": 10, "rot": 3, "level": 0}, {"code": "P4103", "c": 4, "r": 9, "rot": 3, "level": 0}, {"code": "P4103", "c": 5, "r": 9, "rot": 3, "level": 0}, {"code": "P4103", "c": 6, "r": 9, "rot": 3, "level": 0}, {"code": "P4101", "c": 7, "r": 9, "rot": 3, "level": 0}, {"code": "P4101", "c": 9, "r": 9, "rot": 3, "level": 0}, {"code": "P4103", "c": 11, "r": 9, "rot": 3, "level": 0}, {"code": "P4033", "c": 9, "r": 3, "rot": 2, "level": 0}, {"code": "P4133", "c": 9, "r": 3, "rot": 2, "level": 0}, {"code": "P4004", "c": 9, "r": 1, "rot": 2, "level": 0}, {"code": "P4012", "c": 9, "r": 0, "rot": 2, "level": 0}, {"code": "P4101", "c": 8, "r": 1, "rot": 2, "level": 0}, {"code": "P4103", "c": 8, "r": 0, "rot": 2, "level": 0}, {"code": "P4011", "c": 11, "r": 3, "rot": 1, "level": 0}, {"code": "P4103", "c": 11, "r": 5, "rot": 1, "level": 0}, {"code": "P2012", "c": 11, "r": 1, "rot": 3, "level": 0}, {"code": "P2001", "c": 11, "r": 0, "rot": 0, "level": 0}, {"code": "P4046", "c": 4, "r": 7, "rot": 0, "level": 0}, {"code": "P4047", "c": 5, "r": 7, "rot": 3, "level": 0}, {"code": "P4046", "c": 5, "r": 6, "rot": 2, "level": 0}, {"code": "P4047", "c": 4, "r": 6, "rot": 1, "level": 0}, {"code": "P4050", "c": 7, "r": 8, "rot": 0, "level": 0}, {"code": "P4051", "c": 8, "r": 8, "rot": 2, "level": 0}, {"code": "P4043", "c": 7, "r": 5, "rot": 0, "level": 0}, {"code": "P4041", "c": 4, "r": 2, "rot": 0, "level": 0}, {"code": "P4042", "c": 6, "r": 2, "rot": 0, "level": 0}, {"code": "P4114", "c": 9, "r": 7, "rot": 0, "level": 0}, {"code": "P4114", "c": 6, "r": 6, "rot": 0, "level": 0}, {"code": "P4114", "c": 8, "r": 5, "rot": 0, "level": 0}, {"code": "P4114", "c": 3, "r": 4, "rot": 0, "level": 0}, {"code": "P4114", "c": 5, "r": 4, "rot": 0, "level": 0}, {"code": "P4114", "c": 7, "r": 3, "rot": 0, "level": 0}, {"code": "P4114", "c": 3, "r": 0, "rot": 0, "level": 0}, {"code": "P4114", "c": 5, "r": 0, "rot": 0, "level": 0}, {"code": "P4112", "c": 11, "r": 7, "rot": 0, "level": 0}, {"code": "P4112", "c": 10, "r": 5, "rot": 0, "level": 0}, {"code": "P4112", "c": 3, "r": 2, "rot": 0, "level": 0}, {"code": "P4112", "c": 5, "r": 2, "rot": 0, "level": 0}, {"code": "P4112", "c": 7, "r": 1, "rot": 0, "level": 0}, {"code": "P4111", "c": 4, "r": 8, "rot": 0, "level": 0}, {"code": "P4111", "c": 5, "r": 8, "rot": 0, "level": 0}, {"code": "P4111", "c": 6, "r": 8, "rot": 0, "level": 0}, {"code": "P4111", "c": 8, "r": 7, "rot": 0, "level": 0}, {"code": "P4111", "c": 11, "r": 6, "rot": 0, "level": 0}, {"code": "P4111", "c": 4, "r": 3, "rot": 0, "level": 0}, {"code": "P4111", "c": 6, "r": 3, "rot": 0, "level": 0}, {"code": "P4111", "c": 7, "r": 0, "rot": 0, "level": 0}], "at": 9100000000000000.0}, {"id": "lava-stones", "uid": "terraform", "name": "Stepping stones", "boards": [{"x": 0, "z": 0, "w": 12, "l": 7}], "blocks": [{"code": "P4046", "c": 1, "r": 5, "rot": 0, "level": 0}, {"code": "P4047", "c": 2, "r": 5, "rot": 3, "level": 0}, {"code": "P4046", "c": 2, "r": 4, "rot": 2, "level": 0}, {"code": "P4047", "c": 1, "r": 4, "rot": 1, "level": 0}, {"code": "P4050", "c": 5, "r": 4, "rot": 0, "level": 0}, {"code": "P4048", "c": 6, "r": 4, "rot": 0, "level": 0}, {"code": "P4049", "c": 7, "r": 4, "rot": 0, "level": 0}, {"code": "P4051", "c": 8, "r": 4, "rot": 2, "level": 0}, {"code": "P4041", "c": 5, "r": 0, "rot": 0, "level": 0}, {"code": "P4042", "c": 7, "r": 0, "rot": 0, "level": 0}, {"code": "P4043", "c": 9, "r": 0, "rot": 0, "level": 0}, {"code": "P4114", "c": 3, "r": 5, "rot": 0, "level": 0}, {"code": "P4114", "c": 5, "r": 5, "rot": 0, "level": 0}, {"code": "P4114", "c": 7, "r": 5, "rot": 0, "level": 0}, {"code": "P4114", "c": 3, "r": 3, "rot": 0, "level": 0}, {"code": "P4114", "c": 0, "r": 2, "rot": 0, "level": 0}, {"code": "P4114", "c": 5, "r": 2, "rot": 0, "level": 0}, {"code": "P4114", "c": 7, "r": 2, "rot": 0, "level": 0}, {"code": "P4114", "c": 2, "r": 1, "rot": 0, "level": 0}, {"code": "P4114", "c": 0, "r": 0, "rot": 0, "level": 0}, {"code": "P4112", "c": 0, "r": 5, "rot": 0, "level": 0}, {"code": "P4112", "c": 9, "r": 5, "rot": 0, "level": 0}, {"code": "P4112", "c": 9, "r": 3, "rot": 0, "level": 0}, {"code": "P4112", "c": 4, "r": 1, "rot": 0, "level": 0}, {"code": "P4112", "c": 9, "r": 1, "rot": 0, "level": 0}, {"code": "P4112", "c": 6, "r": 0, "rot": 0, "level": 0}, {"code": "P4112", "c": 8, "r": 0, "rot": 0, "level": 0}, {"code": "P4111", "c": 1, "r": 6, "rot": 0, "level": 0}, {"code": "P4111", "c": 2, "r": 6, "rot": 0, "level": 0}, {"code": "P4111", "c": 0, "r": 4, "rot": 0, "level": 0}, {"code": "P4111", "c": 2, "r": 3, "rot": 0, "level": 0}, {"code": "P4111", "c": 5, "r": 1, "rot": 0, "level": 0}, {"code": "P4111", "c": 7, "r": 1, "rot": 0, "level": 0}, {"code": "P4111", "c": 2, "r": 0, "rot": 0, "level": 0}, {"code": "P4111", "c": 3, "r": 0, "rot": 0, "level": 0}, {"code": "P4111", "c": 4, "r": 0, "rot": 0, "level": 0}], "at": 9100000000000000.0}, {"id": "lava-headland", "uid": "terraform", "name": "Headland and causeway", "boards": [{"x": 0, "z": 0, "w": 12, "l": 6}], "blocks": [{"code": "P4011", "c": 0, "r": 5, "rot": 0, "level": 0}, {"code": "P4013", "c": 0, "r": 2, "rot": 0, "level": 0}, {"code": "P4003", "c": 0, "r": 0, "rot": 0, "level": 0}, {"code": "P4103", "c": 2, "r": 5, "rot": 0, "level": 0}, {"code": "P4103", "c": 2, "r": 4, "rot": 0, "level": 0}, {"code": "P4103", "c": 2, "r": 2, "rot": 0, "level": 0}, {"code": "P4101", "c": 2, "r": 0, "rot": 0, "level": 0}, {"code": "P4048", "c": 2, "r": 3, "rot": 0, "level": 0}, {"code": "P4049", "c": 3, "r": 3, "rot": 0, "level": 0}, {"code": "P4050", "c": 4, "r": 3, "rot": 2, "level": 0}, {"code": "P4114", "c": 3, "r": 4, "rot": 0, "level": 0}, {"code": "P4114", "c": 5, "r": 4, "rot": 0, "level": 0}, {"code": "P4114", "c": 5, "r": 2, "rot": 0, "level": 0}, {"code": "P4114", "c": 3, "r": 1, "rot": 0, "level": 0}, {"code": "P4114", "c": 5, "r": 0, "rot": 0, "level": 0}, {"code": "P4111", "c": 3, "r": 0, "rot": 0, "level": 0}, {"code": "P4111", "c": 4, "r": 0, "rot": 0, "level": 0}], "at": 9100000000000000.0}, {"id": "lava-diagonals", "uid": "terraform", "name": "Diagonals, inside corner, S-curve mirror", "boards": [{"x": 0, "z": 0, "w": 12, "l": 12}], "blocks": [{"code": "P4032", "c": 3, "r": 11, "rot": 0, "level": 0}, {"code": "P4132", "c": 5, "r": 11, "rot": 0, "level": 0}, {"code": "P4032", "c": 7, "r": 11, "rot": 2, "level": 0}, {"code": "P4132", "c": 6, "r": 11, "rot": 2, "level": 0}, {"code": "P4032", "c": 2, "r": 10, "rot": 0, "level": 0}, {"code": "P4132", "c": 4, "r": 10, "rot": 0, "level": 0}, {"code": "P4032", "c": 6, "r": 10, "rot": 2, "level": 0}, {"code": "P4132", "c": 5, "r": 10, "rot": 2, "level": 0}, {"code": "P4032", "c": 1, "r": 9, "rot": 0, "level": 0}, {"code": "P4132", "c": 3, "r": 9, "rot": 0, "level": 0}, {"code": "P4032", "c": 5, "r": 9, "rot": 2, "level": 0}, {"code": "P4132", "c": 4, "r": 9, "rot": 2, "level": 0}, {"code": "P4032", "c": 0, "r": 8, "rot": 0, "level": 0}, {"code": "P4132", "c": 2, "r": 8, "rot": 0, "level": 0}, {"code": "P4032", "c": 4, "r": 8, "rot": 2, "level": 0}, {"code": "P4132", "c": 3, "r": 8, "rot": 2, "level": 0}, {"code": "P4035", "c": 0, "r": 6, "rot": 0, "level": 0}, {"code": "P4135", "c": 2, "r": 6, "rot": 0, "level": 0}, {"code": "P4035", "c": 4, "r": 6, "rot": 2, "level": 0}, {"code": "P4135", "c": 3, "r": 6, "rot": 2, "level": 0}, {"code": "P4035", "c": 1, "r": 5, "rot": 0, "level": 0}, {"code": "P4135", "c": 3, "r": 5, "rot": 0, "level": 0}, {"code": "P4035", "c": 5, "r": 5, "rot": 2, "level": 0}, {"code": "P4135", "c": 4, "r": 5, "rot": 2, "level": 0}, {"code": "P4035", "c": 2, "r": 4, "rot": 0, "level": 0}, {"code": "P4135", "c": 4, "r": 4, "rot": 0, "level": 0}, {"code": "P4035", "c": 6, "r": 4, "rot": 2, "level": 0}, {"code": "P4135", "c": 5, "r": 4, "rot": 2, "level": 0}, {"code": "P4035", "c": 3, "r": 3, "rot": 0, "level": 0}, {"code": "P4135", "c": 5, "r": 3, "rot": 0, "level": 0}, {"code": "P4035", "c": 7, "r": 3, "rot": 2, "level": 0}, {"code": "P4135", "c": 6, "r": 3, "rot": 2, "level": 0}, {"code": "P4021", "c": 9, "r": 2, "rot": 0, "level": 0}, {"code": "P4103", "c": 11, "r": 3, "rot": 0, "level": 0}, {"code": "P4114", "c": 10, "r": 1, "rot": 0, "level": 0}, {"code": "P4034", "c": 0, "r": 0, "rot": 0, "level": 0}, {"code": "P4134", "c": 0, "r": 0, "rot": 0, "level": 0}], "at": 9100000000000000.0}, {"id": "ledge-v3", "uid": "terraform", "name": "Ledge + lava test (v3)", "boards": [{"x": 0, "z": 0, "w": 6, "l": 6}], "blocks": [{"code": "P4001", "c": 0, "r": 0, "rot": 0, "level": 0}, {"code": "P4101", "c": 2, "r": 0, "rot": 0, "level": 0}, {"code": "P4101", "c": 3, "r": 0, "rot": 2, "level": 0}, {"code": "P4001", "c": 4, "r": 0, "rot": 2, "level": 0}, {"code": "P4001", "c": 0, "r": 2, "rot": 0, "level": 0}, {"code": "P4101", "c": 2, "r": 2, "rot": 0, "level": 0}, {"code": "P4101", "c": 3, "r": 2, "rot": 2, "level": 0}, {"code": "P4001", "c": 4, "r": 2, "rot": 2, "level": 0}, {"code": "P4001", "c": 0, "r": 4, "rot": 0, "level": 0}, {"code": "P4101", "c": 2, "r": 4, "rot": 0, "level": 0}, {"code": "P4101", "c": 3, "r": 4, "rot": 2, "level": 0}, {"code": "P4001", "c": 4, "r": 4, "rot": 2, "level": 0}], "at": 9000000000000003.0}, {"id": "lava-fall", "uid": "terraform", "name": "Lava fall", "boards": [{"x": 0, "z": 0, "w": 10, "l": 12}], "blocks": [{"code": "P4201", "c": 4, "r": 0, "rot": 1, "level": 0}, {"code": "P4123", "c": 4, "r": 2, "rot": 1, "level": 0}, {"code": "P4123", "c": 5, "r": 2, "rot": 2, "level": 0}, {"code": "P4101", "c": 4, "r": 3, "rot": 0, "level": 0}, {"code": "P4101", "c": 5, "r": 3, "rot": 2, "level": 0}, {"code": "P4101", "c": 4, "r": 5, "rot": 0, "level": 0}, {"code": "P4101", "c": 5, "r": 5, "rot": 2, "level": 0}, {"code": "P4101", "c": 4, "r": 7, "rot": 0, "level": 0}, {"code": "P4101", "c": 5, "r": 7, "rot": 2, "level": 0}, {"code": "P4101", "c": 4, "r": 9, "rot": 0, "level": 0}, {"code": "P4101", "c": 5, "r": 9, "rot": 2, "level": 0}, {"code": "P4103", "c": 4, "r": 11, "rot": 0, "level": 0}, {"code": "P4103", "c": 5, "r": 11, "rot": 2, "level": 0}, {"code": "P4011", "c": 2, "r": 11, "rot": 0, "level": 0}, {"code": "P4012", "c": 2, "r": 10, "rot": 0, "level": 0}, {"code": "P4003", "c": 2, "r": 8, "rot": 0, "level": 0}, {"code": "P4004", "c": 2, "r": 6, "rot": 0, "level": 0}, {"code": "P4002", "c": 2, "r": 4, "rot": 0, "level": 0}, {"code": "P4001", "c": 2, "r": 2, "rot": 0, "level": 0}, {"code": "P4006", "c": 6, "r": 10, "rot": 2, "level": 0}, {"code": "P4001", "c": 6, "r": 8, "rot": 2, "level": 0}, {"code": "P4002", "c": 6, "r": 6, "rot": 2, "level": 0}, {"code": "P4011", "c": 6, "r": 5, "rot": 2, "level": 0}, {"code": "P4012", "c": 6, "r": 4, "rot": 2, "level": 0}, {"code": "P4003", "c": 6, "r": 2, "rot": 2, "level": 0}, {"code": "P3001", "c": 2, "r": 0, "rot": 3, "level": 0}, {"code": "P3001", "c": 6, "r": 0, "rot": 3, "level": 0}, {"code": "P2010", "c": 0, "r": 10, "rot": 0, "level": 0}, {"code": "P2010", "c": 8, "r": 10, "rot": 0, "level": 0}, {"code": "P2010", "c": 0, "r": 8, "rot": 0, "level": 0}, {"code": "P2010", "c": 8, "r": 8, "rot": 0, "level": 0}, {"code": "P2010", "c": 0, "r": 6, "rot": 0, "level": 0}, {"code": "P2010", "c": 8, "r": 6, "rot": 0, "level": 0}, {"code": "P2010", "c": 0, "r": 4, "rot": 0, "level": 0}, {"code": "P2010", "c": 8, "r": 4, "rot": 0, "level": 0}, {"code": "P2010", "c": 0, "r": 2, "rot": 0, "level": 0}, {"code": "P2010", "c": 8, "r": 2, "rot": 0, "level": 0}, {"code": "P2010", "c": 0, "r": 0, "rot": 0, "level": 0}, {"code": "P2010", "c": 8, "r": 0, "rot": 0, "level": 0}], "at": 9000000000000001.0}, {"id": "lava-channel", "uid": "terraform", "name": "Wide lava channel (concept)", "boards": [{"x": 0, "z": 0, "w": 12, "l": 12}], "blocks": [{"code": "P2010", "c": 0, "r": 10, "rot": 0, "level": 0}, {"code": "P4001", "c": 2, "r": 10, "rot": 0, "level": 0}, {"code": "P4101", "c": 4, "r": 10, "rot": 0, "level": 0}, {"code": "P4114", "c": 5, "r": 10, "rot": 0, "level": 0}, {"code": "P4101", "c": 7, "r": 10, "rot": 2, "level": 0}, {"code": "P4004", "c": 8, "r": 10, "rot": 2, "level": 0}, {"code": "P2010", "c": 10, "r": 10, "rot": 0, "level": 0}, {"code": "P2010", "c": 0, "r": 8, "rot": 0, "level": 0}, {"code": "P4002", "c": 2, "r": 8, "rot": 0, "level": 0}, {"code": "P4101", "c": 4, "r": 8, "rot": 0, "level": 0}, {"code": "P4114", "c": 5, "r": 8, "rot": 0, "level": 0}, {"code": "P4101", "c": 7, "r": 8, "rot": 2, "level": 0}, {"code": "P4002", "c": 8, "r": 8, "rot": 2, "level": 0}, {"code": "P2010", "c": 10, "r": 8, "rot": 0, "level": 0}, {"code": "P2010", "c": 0, "r": 6, "rot": 0, "level": 0}, {"code": "P4003", "c": 2, "r": 6, "rot": 0, "level": 0}, {"code": "P4101", "c": 4, "r": 6, "rot": 0, "level": 0}, {"code": "P4114", "c": 5, "r": 6, "rot": 0, "level": 0}, {"code": "P4101", "c": 7, "r": 6, "rot": 2, "level": 0}, {"code": "P4006", "c": 8, "r": 6, "rot": 2, "level": 0}, {"code": "P2010", "c": 10, "r": 6, "rot": 0, "level": 0}, {"code": "P2010", "c": 0, "r": 4, "rot": 0, "level": 0}, {"code": "P4004", "c": 2, "r": 4, "rot": 0, "level": 0}, {"code": "P4101", "c": 4, "r": 4, "rot": 0, "level": 0}, {"code": "P4114", "c": 5, "r": 4, "rot": 0, "level": 0}, {"code": "P4101", "c": 7, "r": 4, "rot": 2, "level": 0}, {"code": "P4001", "c": 8, "r": 4, "rot": 2, "level": 0}, {"code": "P2010", "c": 10, "r": 4, "rot": 0, "level": 0}, {"code": "P2010", "c": 0, "r": 2, "rot": 0, "level": 0}, {"code": "P4002", "c": 2, "r": 2, "rot": 0, "level": 0}, {"code": "P4101", "c": 4, "r": 2, "rot": 0, "level": 0}, {"code": "P4114", "c": 5, "r": 2, "rot": 0, "level": 0}, {"code": "P4101", "c": 7, "r": 2, "rot": 2, "level": 0}, {"code": "P4002", "c": 8, "r": 2, "rot": 2, "level": 0}, {"code": "P2010", "c": 10, "r": 2, "rot": 0, "level": 0}, {"code": "P2010", "c": 0, "r": 0, "rot": 0, "level": 0}, {"code": "P4006", "c": 2, "r": 0, "rot": 0, "level": 0}, {"code": "P4101", "c": 4, "r": 0, "rot": 0, "level": 0}, {"code": "P4114", "c": 5, "r": 0, "rot": 0, "level": 0}, {"code": "P4101", "c": 7, "r": 0, "rot": 2, "level": 0}, {"code": "P4003", "c": 8, "r": 0, "rot": 2, "level": 0}, {"code": "P2010", "c": 10, "r": 0, "rot": 0, "level": 0}], "at": 9000000000000000.0}];
+const BUILTIN = [{"id": "coast-tidewater", "uid": "terraform", "name": "Tidewater: jetty, beach and shallows", "boards": [{"x": 0, "z": 0, "w": 12, "l": 8}], "blocks": [{"code": "P5002", "c": 0, "r": 0, "rot": 0, "level": 0}, {"code": "P5001", "c": 2, "r": 0, "rot": 0, "level": 0}, {"code": "P5002", "c": 0, "r": 2, "rot": 0, "level": 0}, {"code": "P5001", "c": 2, "r": 2, "rot": 0, "level": 0}, {"code": "P5002", "c": 0, "r": 4, "rot": 0, "level": 0}, {"code": "P5001", "c": 2, "r": 4, "rot": 0, "level": 0}, {"code": "P5002", "c": 0, "r": 6, "rot": 0, "level": 0}, {"code": "P5001", "c": 2, "r": 6, "rot": 0, "level": 0}, {"code": "P4144", "c": 4, "r": 0, "rot": 0, "level": 0}, {"code": "P4142", "c": 4, "r": 1, "rot": 0, "level": 0}, {"code": "P4142", "c": 4, "r": 2, "rot": 0, "level": 0}, {"code": "P4142", "c": 4, "r": 3, "rot": 0, "level": 0}, {"code": "P4143", "c": 4, "r": 4, "rot": 0, "level": 0}, {"code": "P4141", "c": 4, "r": 5, "rot": 0, "level": 0}, {"code": "P4145", "c": 4, "r": 7, "rot": 0, "level": 0}, {"code": "P4155", "c": 6, "r": 1, "rot": 1, "level": 0}, {"code": "P4154", "c": 6, "r": 3, "rot": 0, "level": 0}, {"code": "P4156", "c": 7, "r": 1, "rot": 0, "level": 0}, {"code": "P4155", "c": 9, "r": 1, "rot": 1, "level": 0}, {"code": "P4156", "c": 7, "r": 3, "rot": 0, "level": 0}, {"code": "P4155", "c": 9, "r": 3, "rot": 1, "level": 0}, {"code": "P4156", "c": 7, "r": 5, "rot": 0, "level": 0}, {"code": "P4155", "c": 9, "r": 5, "rot": 1, "level": 0}, {"code": "P4151", "c": 10, "r": 0, "rot": 0, "level": 0}, {"code": "P4151", "c": 10, "r": 7, "rot": 1, "level": 0}, {"code": "P4152", "c": 7, "r": 7, "rot": 2, "level": 0}, {"code": "P4151", "c": 6, "r": 7, "rot": 2, "level": 0}, {"code": "P4153", "c": 6, "r": 4, "rot": 3, "level": 0}, {"code": "P4112", "c": 11, "r": 0, "rot": 0, "level": 0}, {"code": "P4112", "c": 11, "r": 2, "rot": 0, "level": 0}, {"code": "P4112", "c": 11, "r": 4, "rot": 0, "level": 0}, {"code": "P4112", "c": 11, "r": 6, "rot": 0, "level": 0}, {"code": "P5111", "c": 1, "r": 1, "rot": 0, "level": 0}, {"code": "P5112", "c": 1, "r": 2, "rot": 0, "level": 0}, {"code": "P5113", "c": 1, "r": 3, "rot": 0, "level": 0}, {"code": "P5102", "c": 5, "r": 1, "rot": 0, "level": 0}, {"code": "P5101", "c": 5, "r": 2, "rot": 0, "level": 0}, {"code": "P5102", "c": 5, "r": 3, "rot": 2, "level": 0}, {"code": "P5102", "c": 6, "r": 1, "rot": 0, "level": 0}, {"code": "P5101", "c": 6, "r": 2, "rot": 0, "level": 0}, {"code": "P5106", "c": 6, "r": 3, "rot": 0, "level": 0}, {"code": "P5102", "c": 7, "r": 1, "rot": 0, "level": 0}, {"code": "P5102", "c": 8, "r": 1, "rot": 0, "level": 0}, {"code": "P5104", "c": 9, "r": 1, "rot": 0, "level": 0}, {"code": "P5103", "c": 9, "r": 2, "rot": 0, "level": 0}, {"code": "P5103", "c": 9, "r": 3, "rot": 0, "level": 0}, {"code": "P5101", "c": 7, "r": 2, "rot": 0, "level": 0}, {"code": "P5101", "c": 7, "r": 3, "rot": 0, "level": 0}, {"code": "P5101", "c": 8, "r": 2, "rot": 0, "level": 0}, {"code": "P5101", "c": 8, "r": 3, "rot": 0, "level": 0}, {"code": "P5107", "c": 7, "r": 4, "rot": 3, "level": 0}, {"code": "P5101", "c": 8, "r": 4, "rot": 1, "level": 0}, {"code": "P5102", "c": 9, "r": 4, "rot": 1, "level": 0}, {"code": "P5102", "c": 7, "r": 5, "rot": 3, "level": 0}, {"code": "P5101", "c": 8, "r": 5, "rot": 1, "level": 0}, {"code": "P5102", "c": 9, "r": 5, "rot": 1, "level": 0}, {"code": "P5105", "c": 7, "r": 6, "rot": 1, "level": 0}, {"code": "P5103", "c": 8, "r": 6, "rot": 1, "level": 0}, {"code": "P5104", "c": 9, "r": 6, "rot": 1, "level": 0}, {"code": "P5202", "c": 5, "r": 1, "rot": 2, "level": 0.5}, {"code": "P5202", "c": 7, "r": 1, "rot": 2, "level": 0.5}, {"code": "P5204", "c": 9, "r": 1, "rot": 2, "level": 0.5}, {"code": "P5203", "c": 9, "r": 3, "rot": 3, "level": 0.5}, {"code": "P5204", "c": 9, "r": 6, "rot": 3, "level": 0.5}, {"code": "P5204", "c": 7, "r": 6, "rot": 0, "level": 0.5}, {"code": "P5202", "c": 7, "r": 4, "rot": 1, "level": 0.5}, {"code": "P5207", "c": 5, "r": 3, "rot": 0, "level": 0.5}, {"code": "P5207", "c": 2, "r": 1, "rot": 2, "level": 0.5}, {"code": "P5205", "c": 4, "r": 3, "rot": 0, "level": 0.5}, {"code": "P5206", "c": 3, "r": 3, "rot": 0, "level": 0.5}, {"code": "P4157", "c": 6, "r": 0, "rot": 0, "level": 0}, {"code": "P4157", "c": 8, "r": 0, "rot": 0, "level": 0}, {"code": "P4157", "c": 10, "r": 1, "rot": 1, "level": 0}, {"code": "P4157", "c": 10, "r": 3, "rot": 1, "level": 0}, {"code": "P4157", "c": 10, "r": 5, "rot": 1, "level": 0}, {"code": "P4157", "c": 8, "r": 7, "rot": 2, "level": 0}, {"code": "P4157", "c": 6, "r": 5, "rot": 3, "level": 0}], "at": 9200000000000000.0, "fluid": "water"}, {"id": "lava-caldera", "uid": "terraform", "name": "Caldera: angled outside corners", "boards": [{"x": 0, "z": 0, "w": 12, "l": 8}, {"x": 0, "z": 8, "w": 12, "l": 8}], "blocks": [{"code": "P4034", "c": 1, "r": 10, "rot": 0, "level": 0}, {"code": "P4031", "c": 1, "r": 8, "rot": 0, "level": 0}, {"code": "P4003", "c": 0, "r": 6, "rot": 0, "level": 0}, {"code": "P4004", "c": 0, "r": 4, "rot": 0, "level": 0}, {"code": "P4036", "c": 1, "r": 1, "rot": 1, "level": 0}, {"code": "P4001", "c": 4, "r": 0, "rot": 1, "level": 0}, {"code": "P4002", "c": 6, "r": 0, "rot": 1, "level": 0}, {"code": "P4036", "c": 8, "r": 1, "rot": 2, "level": 0}, {"code": "P4003", "c": 10, "r": 4, "rot": 2, "level": 0}, {"code": "P4001", "c": 10, "r": 6, "rot": 2, "level": 0}, {"code": "P4035", "c": 9, "r": 8, "rot": 2, "level": 0}, {"code": "P4011", "c": 9, "r": 9, "rot": 2, "level": 0}, {"code": "P4032", "c": 9, "r": 10, "rot": 2, "level": 0}, {"code": "P4012", "c": 10, "r": 11, "rot": 2, "level": 0}, {"code": "P4036", "c": 8, "r": 12, "rot": 3, "level": 0}, {"code": "P4004", "c": 6, "r": 14, "rot": 3, "level": 0}, {"code": "P4006", "c": 4, "r": 14, "rot": 3, "level": 0}, {"code": "P4036", "c": 1, "r": 12, "rot": 0, "level": 0}, {"code": "P4033", "c": 6, "r": 5, "rot": 0, "level": 0}, {"code": "P4033", "c": 4, "r": 5, "rot": 3, "level": 0}, {"code": "P4033", "c": 4, "r": 7, "rot": 2, "level": 0}, {"code": "P4033", "c": 6, "r": 7, "rot": 1, "level": 0}, {"code": "P4041", "c": 5, "r": 11, "rot": 0, "level": 0}, {"code": "P4047", "c": 7, "r": 12, "rot": 0, "level": 0}, {"code": "P4136", "c": 2, "r": 2, "rot": 1, "level": 0}, {"code": "P4136", "c": 8, "r": 2, "rot": 2, "level": 0}, {"code": "P4136", "c": 8, "r": 12, "rot": 3, "level": 0}, {"code": "P4136", "c": 2, "r": 12, "rot": 0, "level": 0}, {"code": "P4134", "c": 1, "r": 10, "rot": 0, "level": 0}, {"code": "P4131", "c": 1, "r": 8, "rot": 0, "level": 0}, {"code": "P4135", "c": 8, "r": 8, "rot": 2, "level": 0}, {"code": "P4132", "c": 8, "r": 10, "rot": 2, "level": 0}, {"code": "P4133", "c": 6, "r": 5, "rot": 0, "level": 0}, {"code": "P4133", "c": 4, "r": 5, "rot": 3, "level": 0}, {"code": "P4133", "c": 4, "r": 7, "rot": 2, "level": 0}, {"code": "P4133", "c": 6, "r": 7, "rot": 1, "level": 0}, {"code": "P4101", "c": 2, "r": 6, "rot": 0, "level": 0}, {"code": "P4101", "c": 2, "r": 4, "rot": 0, "level": 0}, {"code": "P4101", "c": 4, "r": 2, "rot": 1, "level": 0}, {"code": "P4101", "c": 6, "r": 2, "rot": 1, "level": 0}, {"code": "P4101", "c": 9, "r": 4, "rot": 2, "level": 0}, {"code": "P4101", "c": 9, "r": 6, "rot": 2, "level": 0}, {"code": "P4103", "c": 8, "r": 9, "rot": 2, "level": 0}, {"code": "P4103", "c": 9, "r": 11, "rot": 2, "level": 0}, {"code": "P4101", "c": 6, "r": 13, "rot": 3, "level": 0}, {"code": "P4101", "c": 4, "r": 13, "rot": 3, "level": 0}, {"code": "P4114", "c": 4, "r": 3, "rot": 0, "level": 0}, {"code": "P4114", "c": 6, "r": 3, "rot": 0, "level": 0}, {"code": "P4112", "c": 3, "r": 4, "rot": 0, "level": 0}, {"code": "P4112", "c": 8, "r": 4, "rot": 0, "level": 0}, {"code": "P4112", "c": 3, "r": 6, "rot": 0, "level": 0}, {"code": "P4112", "c": 8, "r": 6, "rot": 0, "level": 0}, {"code": "P4112", "c": 3, "r": 8, "rot": 0, "level": 0}, {"code": "P4114", "c": 4, "r": 9, "rot": 0, "level": 0}, {"code": "P4114", "c": 6, "r": 9, "rot": 0, "level": 0}, {"code": "P4112", "c": 3, "r": 10, "rot": 0, "level": 0}, {"code": "P4112", "c": 4, "r": 11, "rot": 0, "level": 0}, {"code": "P4112", "c": 6, "r": 11, "rot": 1, "level": 0}, {"code": "P4111", "c": 8, "r": 11, "rot": 0, "level": 0}, {"code": "P4112", "c": 5, "r": 12, "rot": 1, "level": 0}], "at": 9200000000000000.0}, {"id": "lava-horseshoe", "uid": "terraform", "name": "Horseshoe: angled bends", "boards": [{"x": 0, "z": 0, "w": 12, "l": 8}, {"x": 0, "z": 8, "w": 12, "l": 8}], "blocks": [{"code": "P4001", "c": 4, "r": 0, "rot": 2, "level": 0}, {"code": "P4003", "c": 4, "r": 2, "rot": 2, "level": 0}, {"code": "P4004", "c": 4, "r": 4, "rot": 2, "level": 0}, {"code": "P4002", "c": 4, "r": 6, "rot": 2, "level": 0}, {"code": "P4033", "c": 4, "r": 8, "rot": 2, "level": 0}, {"code": "P4033", "c": 6, "r": 8, "rot": 1, "level": 0}, {"code": "P4003", "c": 6, "r": 6, "rot": 0, "level": 0}, {"code": "P4001", "c": 6, "r": 4, "rot": 0, "level": 0}, {"code": "P4006", "c": 6, "r": 2, "rot": 0, "level": 0}, {"code": "P4004", "c": 6, "r": 0, "rot": 0, "level": 0}, {"code": "P4002", "c": 10, "r": 0, "rot": 2, "level": 0}, {"code": "P4001", "c": 10, "r": 2, "rot": 2, "level": 0}, {"code": "P4004", "c": 10, "r": 4, "rot": 2, "level": 0}, {"code": "P4003", "c": 10, "r": 6, "rot": 2, "level": 0}, {"code": "P4006", "c": 10, "r": 8, "rot": 2, "level": 0}, {"code": "P4011", "c": 10, "r": 10, "rot": 2, "level": 0}, {"code": "P4036", "c": 8, "r": 11, "rot": 3, "level": 0}, {"code": "P4032", "c": 7, "r": 13, "rot": 3, "level": 0}, {"code": "P4002", "c": 5, "r": 14, "rot": 3, "level": 0}, {"code": "P4035", "c": 4, "r": 13, "rot": 3, "level": 0}, {"code": "P4036", "c": 1, "r": 11, "rot": 0, "level": 0}, {"code": "P4012", "c": 0, "r": 10, "rot": 0, "level": 0}, {"code": "P4001", "c": 0, "r": 8, "rot": 0, "level": 0}, {"code": "P4003", "c": 0, "r": 6, "rot": 0, "level": 0}, {"code": "P4004", "c": 0, "r": 4, "rot": 0, "level": 0}, {"code": "P4002", "c": 0, "r": 2, "rot": 0, "level": 0}, {"code": "P4006", "c": 0, "r": 0, "rot": 0, "level": 0}, {"code": "P4136", "c": 8, "r": 11, "rot": 3, "level": 0}, {"code": "P4136", "c": 2, "r": 11, "rot": 0, "level": 0}, {"code": "P4133", "c": 4, "r": 8, "rot": 2, "level": 0}, {"code": "P4133", "c": 6, "r": 8, "rot": 1, "level": 0}, {"code": "P4132", "c": 7, "r": 12, "rot": 3, "level": 0}, {"code": "P4135", "c": 4, "r": 12, "rot": 3, "level": 0}, {"code": "P4101", "c": 3, "r": 0, "rot": 2, "level": 0}, {"code": "P4101", "c": 3, "r": 2, "rot": 2, "level": 0}, {"code": "P4101", "c": 3, "r": 4, "rot": 2, "level": 0}, {"code": "P4101", "c": 3, "r": 6, "rot": 2, "level": 0}, {"code": "P4101", "c": 8, "r": 6, "rot": 0, "level": 0}, {"code": "P4101", "c": 8, "r": 4, "rot": 0, "level": 0}, {"code": "P4101", "c": 8, "r": 2, "rot": 0, "level": 0}, {"code": "P4101", "c": 8, "r": 0, "rot": 0, "level": 0}, {"code": "P4101", "c": 9, "r": 0, "rot": 2, "level": 0}, {"code": "P4101", "c": 9, "r": 2, "rot": 2, "level": 0}, {"code": "P4101", "c": 9, "r": 4, "rot": 2, "level": 0}, {"code": "P4101", "c": 9, "r": 6, "rot": 2, "level": 0}, {"code": "P4101", "c": 9, "r": 8, "rot": 2, "level": 0}, {"code": "P4103", "c": 9, "r": 10, "rot": 2, "level": 0}, {"code": "P4101", "c": 5, "r": 13, "rot": 3, "level": 0}, {"code": "P4103", "c": 2, "r": 10, "rot": 0, "level": 0}, {"code": "P4101", "c": 2, "r": 8, "rot": 0, "level": 0}, {"code": "P4101", "c": 2, "r": 6, "rot": 0, "level": 0}, {"code": "P4101", "c": 2, "r": 4, "rot": 0, "level": 0}, {"code": "P4101", "c": 2, "r": 2, "rot": 0, "level": 0}, {"code": "P4101", "c": 2, "r": 0, "rot": 0, "level": 0}, {"code": "P4112", "c": 3, "r": 8, "rot": 0, "level": 0}, {"code": "P4112", "c": 8, "r": 8, "rot": 0, "level": 0}, {"code": "P4112", "c": 3, "r": 10, "rot": 1, "level": 0}, {"code": "P4114", "c": 5, "r": 10, "rot": 0, "level": 0}, {"code": "P4112", "c": 7, "r": 10, "rot": 1, "level": 0}, {"code": "P4111", "c": 4, "r": 11, "rot": 0, "level": 0}, {"code": "P4111", "c": 7, "r": 11, "rot": 0, "level": 0}, {"code": "P4112", "c": 5, "r": 12, "rot": 1, "level": 0}], "at": 9200000000000000.0}, {"id": "lava-river", "uid": "terraform", "name": "Lava river: every piece", "boards": [{"x": 0, "z": 0, "w": 12, "l": 12}], "blocks": [{"code": "P4022", "c": 1, "r": 10, "rot": 0, "level": 0}, {"code": "P4001", "c": 1, "r": 8, "rot": 0, "level": 0}, {"code": "P4003", "c": 1, "r": 6, "rot": 0, "level": 0}, {"code": "P4031", "c": 1, "r": 4, "rot": 0, "level": 0}, {"code": "P4004", "c": 0, "r": 2, "rot": 0, "level": 0}, {"code": "P4002", "c": 0, "r": 0, "rot": 0, "level": 0}, {"code": "P2012", "c": 0, "r": 10, "rot": 3, "level": 0}, {"code": "P2012", "c": 0, "r": 8, "rot": 3, "level": 0}, {"code": "P2012", "c": 0, "r": 6, "rot": 3, "level": 0}, {"code": "P2012", "c": 0, "r": 4, "rot": 3, "level": 0}, {"code": "P4123", "c": 3, "r": 9, "rot": 0, "level": 0}, {"code": "P4103", "c": 3, "r": 8, "rot": 0, "level": 0}, {"code": "P4101", "c": 3, "r": 6, "rot": 0, "level": 0}, {"code": "P4131", "c": 1, "r": 4, "rot": 0, "level": 0}, {"code": "P4101", "c": 2, "r": 2, "rot": 0, "level": 0}, {"code": "P4101", "c": 2, "r": 0, "rot": 0, "level": 0}, {"code": "P4006", "c": 3, "r": 10, "rot": 3, "level": 0}, {"code": "P4011", "c": 5, "r": 10, "rot": 3, "level": 0}, {"code": "P4012", "c": 6, "r": 10, "rot": 3, "level": 0}, {"code": "P4001", "c": 7, "r": 10, "rot": 3, "level": 0}, {"code": "P4003", "c": 9, "r": 10, "rot": 3, "level": 0}, {"code": "P4011", "c": 11, "r": 10, "rot": 3, "level": 0}, {"code": "P4103", "c": 4, "r": 9, "rot": 3, "level": 0}, {"code": "P4103", "c": 5, "r": 9, "rot": 3, "level": 0}, {"code": "P4103", "c": 6, "r": 9, "rot": 3, "level": 0}, {"code": "P4101", "c": 7, "r": 9, "rot": 3, "level": 0}, {"code": "P4101", "c": 9, "r": 9, "rot": 3, "level": 0}, {"code": "P4103", "c": 11, "r": 9, "rot": 3, "level": 0}, {"code": "P4033", "c": 9, "r": 3, "rot": 2, "level": 0}, {"code": "P4133", "c": 9, "r": 3, "rot": 2, "level": 0}, {"code": "P4004", "c": 9, "r": 1, "rot": 2, "level": 0}, {"code": "P4012", "c": 9, "r": 0, "rot": 2, "level": 0}, {"code": "P4101", "c": 8, "r": 1, "rot": 2, "level": 0}, {"code": "P4103", "c": 8, "r": 0, "rot": 2, "level": 0}, {"code": "P4011", "c": 11, "r": 3, "rot": 1, "level": 0}, {"code": "P4103", "c": 11, "r": 5, "rot": 1, "level": 0}, {"code": "P2012", "c": 11, "r": 1, "rot": 3, "level": 0}, {"code": "P2001", "c": 11, "r": 0, "rot": 0, "level": 0}, {"code": "P4046", "c": 4, "r": 7, "rot": 0, "level": 0}, {"code": "P4047", "c": 5, "r": 7, "rot": 3, "level": 0}, {"code": "P4046", "c": 5, "r": 6, "rot": 2, "level": 0}, {"code": "P4047", "c": 4, "r": 6, "rot": 1, "level": 0}, {"code": "P4050", "c": 7, "r": 8, "rot": 0, "level": 0}, {"code": "P4051", "c": 8, "r": 8, "rot": 2, "level": 0}, {"code": "P4043", "c": 7, "r": 5, "rot": 0, "level": 0}, {"code": "P4041", "c": 4, "r": 2, "rot": 0, "level": 0}, {"code": "P4042", "c": 6, "r": 2, "rot": 0, "level": 0}, {"code": "P4114", "c": 9, "r": 7, "rot": 0, "level": 0}, {"code": "P4114", "c": 6, "r": 6, "rot": 0, "level": 0}, {"code": "P4114", "c": 8, "r": 5, "rot": 0, "level": 0}, {"code": "P4114", "c": 3, "r": 4, "rot": 0, "level": 0}, {"code": "P4114", "c": 5, "r": 4, "rot": 0, "level": 0}, {"code": "P4114", "c": 7, "r": 3, "rot": 0, "level": 0}, {"code": "P4114", "c": 3, "r": 0, "rot": 0, "level": 0}, {"code": "P4114", "c": 5, "r": 0, "rot": 0, "level": 0}, {"code": "P4112", "c": 11, "r": 7, "rot": 0, "level": 0}, {"code": "P4112", "c": 10, "r": 5, "rot": 0, "level": 0}, {"code": "P4112", "c": 3, "r": 2, "rot": 0, "level": 0}, {"code": "P4112", "c": 5, "r": 2, "rot": 0, "level": 0}, {"code": "P4112", "c": 7, "r": 1, "rot": 0, "level": 0}, {"code": "P4111", "c": 4, "r": 8, "rot": 0, "level": 0}, {"code": "P4111", "c": 5, "r": 8, "rot": 0, "level": 0}, {"code": "P4111", "c": 6, "r": 8, "rot": 0, "level": 0}, {"code": "P4111", "c": 8, "r": 7, "rot": 0, "level": 0}, {"code": "P4111", "c": 11, "r": 6, "rot": 0, "level": 0}, {"code": "P4111", "c": 4, "r": 3, "rot": 0, "level": 0}, {"code": "P4111", "c": 6, "r": 3, "rot": 0, "level": 0}, {"code": "P4111", "c": 7, "r": 0, "rot": 0, "level": 0}], "at": 9100000000000000.0}, {"id": "lava-stones", "uid": "terraform", "name": "Stepping stones", "boards": [{"x": 0, "z": 0, "w": 12, "l": 7}], "blocks": [{"code": "P4046", "c": 1, "r": 5, "rot": 0, "level": 0}, {"code": "P4047", "c": 2, "r": 5, "rot": 3, "level": 0}, {"code": "P4046", "c": 2, "r": 4, "rot": 2, "level": 0}, {"code": "P4047", "c": 1, "r": 4, "rot": 1, "level": 0}, {"code": "P4050", "c": 5, "r": 4, "rot": 0, "level": 0}, {"code": "P4048", "c": 6, "r": 4, "rot": 0, "level": 0}, {"code": "P4049", "c": 7, "r": 4, "rot": 0, "level": 0}, {"code": "P4051", "c": 8, "r": 4, "rot": 2, "level": 0}, {"code": "P4041", "c": 5, "r": 0, "rot": 0, "level": 0}, {"code": "P4042", "c": 7, "r": 0, "rot": 0, "level": 0}, {"code": "P4043", "c": 9, "r": 0, "rot": 0, "level": 0}, {"code": "P4114", "c": 3, "r": 5, "rot": 0, "level": 0}, {"code": "P4114", "c": 5, "r": 5, "rot": 0, "level": 0}, {"code": "P4114", "c": 7, "r": 5, "rot": 0, "level": 0}, {"code": "P4114", "c": 3, "r": 3, "rot": 0, "level": 0}, {"code": "P4114", "c": 0, "r": 2, "rot": 0, "level": 0}, {"code": "P4114", "c": 5, "r": 2, "rot": 0, "level": 0}, {"code": "P4114", "c": 7, "r": 2, "rot": 0, "level": 0}, {"code": "P4114", "c": 2, "r": 1, "rot": 0, "level": 0}, {"code": "P4114", "c": 0, "r": 0, "rot": 0, "level": 0}, {"code": "P4112", "c": 0, "r": 5, "rot": 0, "level": 0}, {"code": "P4112", "c": 9, "r": 5, "rot": 0, "level": 0}, {"code": "P4112", "c": 9, "r": 3, "rot": 0, "level": 0}, {"code": "P4112", "c": 4, "r": 1, "rot": 0, "level": 0}, {"code": "P4112", "c": 9, "r": 1, "rot": 0, "level": 0}, {"code": "P4112", "c": 6, "r": 0, "rot": 0, "level": 0}, {"code": "P4112", "c": 8, "r": 0, "rot": 0, "level": 0}, {"code": "P4111", "c": 1, "r": 6, "rot": 0, "level": 0}, {"code": "P4111", "c": 2, "r": 6, "rot": 0, "level": 0}, {"code": "P4111", "c": 0, "r": 4, "rot": 0, "level": 0}, {"code": "P4111", "c": 2, "r": 3, "rot": 0, "level": 0}, {"code": "P4111", "c": 5, "r": 1, "rot": 0, "level": 0}, {"code": "P4111", "c": 7, "r": 1, "rot": 0, "level": 0}, {"code": "P4111", "c": 2, "r": 0, "rot": 0, "level": 0}, {"code": "P4111", "c": 3, "r": 0, "rot": 0, "level": 0}, {"code": "P4111", "c": 4, "r": 0, "rot": 0, "level": 0}], "at": 9100000000000000.0}, {"id": "lava-headland", "uid": "terraform", "name": "Headland and causeway", "boards": [{"x": 0, "z": 0, "w": 12, "l": 6}], "blocks": [{"code": "P4011", "c": 0, "r": 5, "rot": 0, "level": 0}, {"code": "P4013", "c": 0, "r": 2, "rot": 0, "level": 0}, {"code": "P4003", "c": 0, "r": 0, "rot": 0, "level": 0}, {"code": "P4103", "c": 2, "r": 5, "rot": 0, "level": 0}, {"code": "P4103", "c": 2, "r": 4, "rot": 0, "level": 0}, {"code": "P4103", "c": 2, "r": 2, "rot": 0, "level": 0}, {"code": "P4101", "c": 2, "r": 0, "rot": 0, "level": 0}, {"code": "P4048", "c": 2, "r": 3, "rot": 0, "level": 0}, {"code": "P4049", "c": 3, "r": 3, "rot": 0, "level": 0}, {"code": "P4050", "c": 4, "r": 3, "rot": 2, "level": 0}, {"code": "P4114", "c": 3, "r": 4, "rot": 0, "level": 0}, {"code": "P4114", "c": 5, "r": 4, "rot": 0, "level": 0}, {"code": "P4114", "c": 5, "r": 2, "rot": 0, "level": 0}, {"code": "P4114", "c": 3, "r": 1, "rot": 0, "level": 0}, {"code": "P4114", "c": 5, "r": 0, "rot": 0, "level": 0}, {"code": "P4111", "c": 3, "r": 0, "rot": 0, "level": 0}, {"code": "P4111", "c": 4, "r": 0, "rot": 0, "level": 0}], "at": 9100000000000000.0}, {"id": "lava-diagonals", "uid": "terraform", "name": "Diagonals, inside corner, S-curve mirror", "boards": [{"x": 0, "z": 0, "w": 12, "l": 12}], "blocks": [{"code": "P4032", "c": 3, "r": 11, "rot": 0, "level": 0}, {"code": "P4132", "c": 5, "r": 11, "rot": 0, "level": 0}, {"code": "P4032", "c": 7, "r": 11, "rot": 2, "level": 0}, {"code": "P4132", "c": 6, "r": 11, "rot": 2, "level": 0}, {"code": "P4032", "c": 2, "r": 10, "rot": 0, "level": 0}, {"code": "P4132", "c": 4, "r": 10, "rot": 0, "level": 0}, {"code": "P4032", "c": 6, "r": 10, "rot": 2, "level": 0}, {"code": "P4132", "c": 5, "r": 10, "rot": 2, "level": 0}, {"code": "P4032", "c": 1, "r": 9, "rot": 0, "level": 0}, {"code": "P4132", "c": 3, "r": 9, "rot": 0, "level": 0}, {"code": "P4032", "c": 5, "r": 9, "rot": 2, "level": 0}, {"code": "P4132", "c": 4, "r": 9, "rot": 2, "level": 0}, {"code": "P4032", "c": 0, "r": 8, "rot": 0, "level": 0}, {"code": "P4132", "c": 2, "r": 8, "rot": 0, "level": 0}, {"code": "P4032", "c": 4, "r": 8, "rot": 2, "level": 0}, {"code": "P4132", "c": 3, "r": 8, "rot": 2, "level": 0}, {"code": "P4035", "c": 0, "r": 6, "rot": 0, "level": 0}, {"code": "P4135", "c": 2, "r": 6, "rot": 0, "level": 0}, {"code": "P4035", "c": 4, "r": 6, "rot": 2, "level": 0}, {"code": "P4135", "c": 3, "r": 6, "rot": 2, "level": 0}, {"code": "P4035", "c": 1, "r": 5, "rot": 0, "level": 0}, {"code": "P4135", "c": 3, "r": 5, "rot": 0, "level": 0}, {"code": "P4035", "c": 5, "r": 5, "rot": 2, "level": 0}, {"code": "P4135", "c": 4, "r": 5, "rot": 2, "level": 0}, {"code": "P4035", "c": 2, "r": 4, "rot": 0, "level": 0}, {"code": "P4135", "c": 4, "r": 4, "rot": 0, "level": 0}, {"code": "P4035", "c": 6, "r": 4, "rot": 2, "level": 0}, {"code": "P4135", "c": 5, "r": 4, "rot": 2, "level": 0}, {"code": "P4035", "c": 3, "r": 3, "rot": 0, "level": 0}, {"code": "P4135", "c": 5, "r": 3, "rot": 0, "level": 0}, {"code": "P4035", "c": 7, "r": 3, "rot": 2, "level": 0}, {"code": "P4135", "c": 6, "r": 3, "rot": 2, "level": 0}, {"code": "P4021", "c": 9, "r": 2, "rot": 0, "level": 0}, {"code": "P4103", "c": 11, "r": 3, "rot": 0, "level": 0}, {"code": "P4114", "c": 10, "r": 1, "rot": 0, "level": 0}, {"code": "P4034", "c": 0, "r": 0, "rot": 0, "level": 0}, {"code": "P4134", "c": 0, "r": 0, "rot": 0, "level": 0}], "at": 9100000000000000.0}, {"id": "ledge-v3", "uid": "terraform", "name": "Ledge + lava test (v3)", "boards": [{"x": 0, "z": 0, "w": 6, "l": 6}], "blocks": [{"code": "P4001", "c": 0, "r": 0, "rot": 0, "level": 0}, {"code": "P4101", "c": 2, "r": 0, "rot": 0, "level": 0}, {"code": "P4101", "c": 3, "r": 0, "rot": 2, "level": 0}, {"code": "P4001", "c": 4, "r": 0, "rot": 2, "level": 0}, {"code": "P4001", "c": 0, "r": 2, "rot": 0, "level": 0}, {"code": "P4101", "c": 2, "r": 2, "rot": 0, "level": 0}, {"code": "P4101", "c": 3, "r": 2, "rot": 2, "level": 0}, {"code": "P4001", "c": 4, "r": 2, "rot": 2, "level": 0}, {"code": "P4001", "c": 0, "r": 4, "rot": 0, "level": 0}, {"code": "P4101", "c": 2, "r": 4, "rot": 0, "level": 0}, {"code": "P4101", "c": 3, "r": 4, "rot": 2, "level": 0}, {"code": "P4001", "c": 4, "r": 4, "rot": 2, "level": 0}], "at": 9000000000000003.0}, {"id": "lava-fall", "uid": "terraform", "name": "Lava fall", "boards": [{"x": 0, "z": 0, "w": 10, "l": 12}], "blocks": [{"code": "P4201", "c": 4, "r": 0, "rot": 1, "level": 0}, {"code": "P4123", "c": 4, "r": 2, "rot": 1, "level": 0}, {"code": "P4123", "c": 5, "r": 2, "rot": 2, "level": 0}, {"code": "P4101", "c": 4, "r": 3, "rot": 0, "level": 0}, {"code": "P4101", "c": 5, "r": 3, "rot": 2, "level": 0}, {"code": "P4101", "c": 4, "r": 5, "rot": 0, "level": 0}, {"code": "P4101", "c": 5, "r": 5, "rot": 2, "level": 0}, {"code": "P4101", "c": 4, "r": 7, "rot": 0, "level": 0}, {"code": "P4101", "c": 5, "r": 7, "rot": 2, "level": 0}, {"code": "P4101", "c": 4, "r": 9, "rot": 0, "level": 0}, {"code": "P4101", "c": 5, "r": 9, "rot": 2, "level": 0}, {"code": "P4103", "c": 4, "r": 11, "rot": 0, "level": 0}, {"code": "P4103", "c": 5, "r": 11, "rot": 2, "level": 0}, {"code": "P4011", "c": 2, "r": 11, "rot": 0, "level": 0}, {"code": "P4012", "c": 2, "r": 10, "rot": 0, "level": 0}, {"code": "P4003", "c": 2, "r": 8, "rot": 0, "level": 0}, {"code": "P4004", "c": 2, "r": 6, "rot": 0, "level": 0}, {"code": "P4002", "c": 2, "r": 4, "rot": 0, "level": 0}, {"code": "P4001", "c": 2, "r": 2, "rot": 0, "level": 0}, {"code": "P4006", "c": 6, "r": 10, "rot": 2, "level": 0}, {"code": "P4001", "c": 6, "r": 8, "rot": 2, "level": 0}, {"code": "P4002", "c": 6, "r": 6, "rot": 2, "level": 0}, {"code": "P4011", "c": 6, "r": 5, "rot": 2, "level": 0}, {"code": "P4012", "c": 6, "r": 4, "rot": 2, "level": 0}, {"code": "P4003", "c": 6, "r": 2, "rot": 2, "level": 0}, {"code": "P3001", "c": 2, "r": 0, "rot": 3, "level": 0}, {"code": "P3001", "c": 6, "r": 0, "rot": 3, "level": 0}, {"code": "P2010", "c": 0, "r": 10, "rot": 0, "level": 0}, {"code": "P2010", "c": 8, "r": 10, "rot": 0, "level": 0}, {"code": "P2010", "c": 0, "r": 8, "rot": 0, "level": 0}, {"code": "P2010", "c": 8, "r": 8, "rot": 0, "level": 0}, {"code": "P2010", "c": 0, "r": 6, "rot": 0, "level": 0}, {"code": "P2010", "c": 8, "r": 6, "rot": 0, "level": 0}, {"code": "P2010", "c": 0, "r": 4, "rot": 0, "level": 0}, {"code": "P2010", "c": 8, "r": 4, "rot": 0, "level": 0}, {"code": "P2010", "c": 0, "r": 2, "rot": 0, "level": 0}, {"code": "P2010", "c": 8, "r": 2, "rot": 0, "level": 0}, {"code": "P2010", "c": 0, "r": 0, "rot": 0, "level": 0}, {"code": "P2010", "c": 8, "r": 0, "rot": 0, "level": 0}], "at": 9000000000000001.0}, {"id": "lava-channel", "uid": "terraform", "name": "Wide lava channel (concept)", "boards": [{"x": 0, "z": 0, "w": 12, "l": 12}], "blocks": [{"code": "P2010", "c": 0, "r": 10, "rot": 0, "level": 0}, {"code": "P4001", "c": 2, "r": 10, "rot": 0, "level": 0}, {"code": "P4101", "c": 4, "r": 10, "rot": 0, "level": 0}, {"code": "P4114", "c": 5, "r": 10, "rot": 0, "level": 0}, {"code": "P4101", "c": 7, "r": 10, "rot": 2, "level": 0}, {"code": "P4004", "c": 8, "r": 10, "rot": 2, "level": 0}, {"code": "P2010", "c": 10, "r": 10, "rot": 0, "level": 0}, {"code": "P2010", "c": 0, "r": 8, "rot": 0, "level": 0}, {"code": "P4002", "c": 2, "r": 8, "rot": 0, "level": 0}, {"code": "P4101", "c": 4, "r": 8, "rot": 0, "level": 0}, {"code": "P4114", "c": 5, "r": 8, "rot": 0, "level": 0}, {"code": "P4101", "c": 7, "r": 8, "rot": 2, "level": 0}, {"code": "P4002", "c": 8, "r": 8, "rot": 2, "level": 0}, {"code": "P2010", "c": 10, "r": 8, "rot": 0, "level": 0}, {"code": "P2010", "c": 0, "r": 6, "rot": 0, "level": 0}, {"code": "P4003", "c": 2, "r": 6, "rot": 0, "level": 0}, {"code": "P4101", "c": 4, "r": 6, "rot": 0, "level": 0}, {"code": "P4114", "c": 5, "r": 6, "rot": 0, "level": 0}, {"code": "P4101", "c": 7, "r": 6, "rot": 2, "level": 0}, {"code": "P4006", "c": 8, "r": 6, "rot": 2, "level": 0}, {"code": "P2010", "c": 10, "r": 6, "rot": 0, "level": 0}, {"code": "P2010", "c": 0, "r": 4, "rot": 0, "level": 0}, {"code": "P4004", "c": 2, "r": 4, "rot": 0, "level": 0}, {"code": "P4101", "c": 4, "r": 4, "rot": 0, "level": 0}, {"code": "P4114", "c": 5, "r": 4, "rot": 0, "level": 0}, {"code": "P4101", "c": 7, "r": 4, "rot": 2, "level": 0}, {"code": "P4001", "c": 8, "r": 4, "rot": 2, "level": 0}, {"code": "P2010", "c": 10, "r": 4, "rot": 0, "level": 0}, {"code": "P2010", "c": 0, "r": 2, "rot": 0, "level": 0}, {"code": "P4002", "c": 2, "r": 2, "rot": 0, "level": 0}, {"code": "P4101", "c": 4, "r": 2, "rot": 0, "level": 0}, {"code": "P4114", "c": 5, "r": 2, "rot": 0, "level": 0}, {"code": "P4101", "c": 7, "r": 2, "rot": 2, "level": 0}, {"code": "P4002", "c": 8, "r": 2, "rot": 2, "level": 0}, {"code": "P2010", "c": 10, "r": 2, "rot": 0, "level": 0}, {"code": "P2010", "c": 0, "r": 0, "rot": 0, "level": 0}, {"code": "P4006", "c": 2, "r": 0, "rot": 0, "level": 0}, {"code": "P4101", "c": 4, "r": 0, "rot": 0, "level": 0}, {"code": "P4114", "c": 5, "r": 0, "rot": 0, "level": 0}, {"code": "P4101", "c": 7, "r": 0, "rot": 2, "level": 0}, {"code": "P4003", "c": 8, "r": 0, "rot": 2, "level": 0}, {"code": "P2010", "c": 10, "r": 0, "rot": 0, "level": 0}], "at": 9000000000000000.0}];
 names.terraform = 'Terraform';
 async function renderDesigns(){
   const q = $('ds-q').value.trim().toLowerCase();
@@ -1994,7 +2437,7 @@ async function renderDesigns(){
     if (tab === 'mine'){
       if (DS.db && DS.owner) acts.push(`<button type="button" data-act="banner" data-key="${esc(key)}" title="Show this build in the home page banner">Use on home banner</button>`);
       if (DS.db) acts.push(`<button type="button" data-act="share" data-key="${esc(key)}" aria-pressed="${sharedIds.has(d.id)}">${sharedIds.has(d.id) ? 'Shared' : 'Share'}</button>`);
-      acts.push(`<button class="warn" type="button" data-act="del" data-key="${esc(key)}">${DS.armed === 'del' + key ? 'Delete?' : 'Delete'}</button>`);
+      acts.push(`<button class="warn" type="button" data-act="del" data-key="${esc(key)}">Delete</button>`);
     } else if (d.uid !== 'terraform' && (d.uid === DS.uid || DS.owner)){
       acts.push(`<button class="warn" type="button" data-act="unshare" data-key="${esc(key)}">Remove</button>`);
     }
@@ -2013,8 +2456,8 @@ $('ds-list').addEventListener('click', async e => {
     if (blocks.length && DS.armed !== key){ DS.armed = key; renderDesigns(); return; }
     DS.armed = null; applyMap(d); $('designs').close(); toast(`Loaded "${d.name}"`, 'info');
   } else if (act === 'del'){
-    if (DS.armed !== 'del' + key){ DS.armed = 'del' + key; renderDesigns(); return; }
     DS.armed = null;
+    if (!(await confirmDelete(d.name))) return;     // a ticked "are you sure" box, not just a second click (16 Nov 2026)
     try {
       if (DS.db){ await DS.db.collection('data/users/' + DS.uid).doc(d.id).delete(); if (DS.shared.some(x => x.uid === DS.uid && x.id === d.id)) await shareDesign(d.id, d, false); }
       else { const m = localMine(); delete m[d.id]; store.set('tf-designs', m); renderDesigns(); }
@@ -2042,6 +2485,19 @@ $('ds-mine').onclick = () => setTab('mine');
 $('ds-browse').onclick = () => setTab('browse');
 $('ds-q').addEventListener('input', () => { DS.armed = null; renderDesigns(); });
 $('ds-close').onclick = () => $('designs').close();
+function confirmDelete(name){
+  return new Promise(res => {
+    const dlg = $('del-dlg'), box = $('dd-sure'), go = $('dd-go');
+    $('dd-note').textContent = `“${name}” will be removed from My designs${DS.db ? ' and from Browse if it’s shared' : ''}. This can’t be undone.`;
+    box.checked = false; go.disabled = true;
+    const done = v => { dlg.close(); box.onchange = go.onclick = $('dd-cancel').onclick = $('dd-x').onclick = dlg.oncancel = null; res(v); };
+    box.onchange = () => { go.disabled = !box.checked; };
+    go.onclick = () => box.checked && done(true);
+    $('dd-cancel').onclick = $('dd-x').onclick = () => done(false);
+    dlg.oncancel = e => { e.preventDefault(); done(false); };
+    dlg.showModal(); $('dd-cancel').focus();
+  });
+}
 $('designs').addEventListener('click', e => { if (e.target === $('designs')) $('designs').close(); });
 $('designs-btn').onclick = async () => { $('designs').showModal(); renderDesigns(); await dsReady; watchDesigns(); renderDesigns(); };
 $('save-btn').onclick = saveDesign;
@@ -2098,7 +2554,7 @@ const GUIDE = [
 // every shortcut, in the order the guide and the Shortcuts panel list them; `act` rows can be rebound
 const KEY_ROWS = [{ m:'Drag', d:'Orbit the view' }, { m:'Scroll', d:'Zoom' }, { act:'turn', d:'Turn the tile (or board)' }, { k:'Esc', d:'Let go of the tile' },
   { m:'Click, click', d:'Select, then turn a placed tile' }, { m:'Double-click', d:'Copy a placed tile' }, { act:'del', d:'Remove the selected tile or board' },
-  { k:'1 – 4', d:'Working level' }, { act:'erase', d:'Remove mode' }, { k:'Ctrl + Z', d:'Undo' }, { act:'view', d:'View mode' },
+  { k:'1 – 4', d:'Working level' }, { act:'erase', d:'Remove mode' }, { act:'select', d:'Select mode: drag a box over tiles' }, { k:'Ctrl + Z', d:'Undo' }, { act:'view', d:'View mode' },
   { act:'move', d:'Left drag slides instead of orbits' }, { act:'boards', d:'Edit boards' }, { act:'tiles', d:'Back to tiles' },
   { act:'zin', d:'Zoom in' }, { act:'zout', d:'Zoom out' }, { act:'frame', d:'Reset the view' }];
 const keyLabel = r => r.m ? `<b>${r.m}</b>` : r.k ? r.k.split(' + ').map(y => `<kbd>${y}</kbd>`).join(' + ') : `<kbd>${KN(r.act)}</kbd>`;
@@ -2157,11 +2613,12 @@ $('settings-btn').onclick = e => { e.stopPropagation(); setMenu($('set-menu').hi
 $('set-menu').addEventListener('keydown', e => { if (e.key === 'Escape'){ e.stopPropagation(); setMenu(false); $('settings-btn').focus(); } });
 addEventListener('pointerdown', e => { if (!$('set-menu').hidden && !e.target.closest('.setwrap')) setMenu(false); });
 $('set-guide').onclick = () => { setMenu(false); openGuide(0); };
+$('set-hints').onclick = () => { setMenu(false); hintSeen.clear(); hintNow = ''; hintGone = ''; store.set('tf-hints', []); idleHint(); toast('Hints are back', 'info'); };
 $('set-keys').onclick = () => { setMenu(false); openKeys(); };
 // the Shortcuts panel: click a key, press the new one; a key already in use swaps over
 let keyWait = null;
 function keyTitles(){
-  const t = { 'm-tiles':`Edit tiles (${KN('tiles')})`, 'm-boards':`Edit boards (${KN('boards')})`, 't-view':`View mode (${KN('view')})`, 't-move':`Orbit / move (${KN('move')})`,
+  const t = { 'm-tiles':`Edit tiles (${KN('tiles')})`, 'm-boards':`Edit boards (${KN('boards')})`, 't-view':`View mode (${KN('view')})`, 't-select':`Select (${KN('select')})`, 't-move':`Orbit / move (${KN('move')})`,
     'z-in':`Zoom in (${KN('zin')})`, 'z-out':`Zoom out (${KN('zout')})`, 'z-home':`Reset the view (${KN('frame')})`, 'pb-turn':`Rotate 90° (${KN('turn')})` };
   for (const id in t){ const el = $(id); if (el){ el.title = t[id]; if (el.hasAttribute('aria-label') && id !== 't-move') el.setAttribute('aria-label', t[id]); } }
   try { syncRail(); } catch {}
@@ -2225,7 +2682,7 @@ try {
   MODELS = await (await fetch('models.json?v=' + VER)).json();
   try { MODELS = MODELS.concat(await (await fetch('models-lava.json?v=' + VER)).json()); } catch {}
   MODELS.forEach(m => BY[m.code] = m);
-  for (const m of MODELS){ geos[m.code] = makeGeo(m, await decode(m.data)); try { const ps = geos[m.code].getAttribute('position').array; SHADOW[m.code] = shadowOf(ps); if (m.kind === 'shelf' || m.kind === 'fluid' || m.kind === 'insert') COLS[m.code] = columnsOf(ps); } catch {} }
+  for (const m of MODELS){ geos[m.code] = makeGeo(m, await decode(m.data)); try { const ps = geos[m.code].getAttribute('position').array; SHADOW[m.code] = shadowOf(ps); if (m.kind === 'shelf' || m.kind === 'fluid' || m.kind === 'insert' || m.acc) COLS[m.code] = columnsOf(ps); } catch {} }
   await thumbs();
   const saved = store.get('tf-studio-map');
   applyMap((saved && saved.blocks) ? saved : EXAMPLE, true);
