@@ -1283,7 +1283,13 @@ function placeMast(o, mb){ const M = mastMatrix(mb); if (M){ o.rotation.order = 
 const reMast = () => blocks.forEach(b => { if (BY[b.code].mast){ const o = meshes.get(b.id); if (o) placeMast(o, b); } });
 function check(m, c, r, ro, lv, h45){
   const res = checkCore(m, c, r, ro, lv, h45);
-  if (!res.ok || m.float || m.mast || isFluid(m.code)) return res;
+  if (!res.ok || m.float || m.mast) return res;
+  if (isFluid(m.code)){                                   // water, lava and sand against accessories standing in the board (18 Nov 2026)
+    const [w0, h0] = foot(m, ro), accs = blocks.filter(b => b.id !== check.skip && BY[b.code].acc && !BY[b.code].float && !BY[b.code].mast && b.c <= c + w0 + 1 && b.r <= r + h0 + 1 && b.c >= c - 2 && b.r >= r - 2);
+    if (accs.length){ const A = placedCols(m.code, c, r, ro, h45, res.lvl);
+      if (A) for (const b of accs){ const B = placedOf(b); if (B && colsHit(A, B, 0.5)) return { ...res, ok:false, why:`It would hit ${hitName(b)}. Move or remove it first.` }; } }
+    return res;
+  }
   // every tile and accessory against the real shapes of the pieces near it, water, lava and sand aside (18 Nov 2026): a deck's point
   // reaching into the next square, a deck over a stump in the board, a lamp's base on rough rock. Accessories get 0.5 mm, as the
   // Studio draws them up to 0.375 mm low on a deck (half levels); the prints are right.
