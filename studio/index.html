@@ -182,6 +182,7 @@ kbd{display:inline-block;min-width:1.6em;padding:1px 6px;border-radius:6px;borde
 body.viewing .top,body.viewing .dock,body.viewing .drawer,body.viewing .rail,body.viewing .zoom,body.viewing .hint,body.viewing .tip,body.viewing #movebar{display:none!important}
 body.viewing .app{grid-template-rows:minmax(0,1fr)!important}
 body.viewing .main{grid-template-columns:minmax(0,1fr)!important}
+body.dock-shut .dock{display:none!important}
 .dhide,.dtab{display:none}
 body.viewing .dtab{display:none!important}
 .view-close{position:absolute;top:max(12px,env(safe-area-inset-top,0px));right:max(12px,env(safe-area-inset-right,0px));z-index:6;padding:10px 16px;min-height:44px;border-radius:999px;border:1px solid var(--line);background:color-mix(in srgb,var(--surface) 92%,transparent);color:var(--ink);font:600 .9rem var(--font-hud,inherit);cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.3)}
@@ -325,10 +326,10 @@ body.selecting canvas{cursor:crosshair}
 .nudge:hover:not(:disabled){background:var(--surface-2);color:var(--gold)}
 .nudge:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
 .nudge:disabled{opacity:.25;cursor:default}
-/* 19 Nov 2026: every scrollbar matches the zoom slider: a slim rounded track in the line colour, the accent thumb, no arrow buttons */
-*{scrollbar-width:thin;scrollbar-color:var(--gold) color-mix(in srgb,var(--line) 80%,transparent)}
+/* 19 Nov 2026: every scrollbar matches the zoom slider: the accent thumb only, rounded, on no background */
+*{scrollbar-width:thin;scrollbar-color:var(--gold) transparent}
 *::-webkit-scrollbar{width:6px;height:6px}
-*::-webkit-scrollbar-track{background:color-mix(in srgb,var(--line) 80%,transparent);border-radius:999px}
+*::-webkit-scrollbar-track{background:transparent}
 *::-webkit-scrollbar-thumb{background:var(--gold);border-radius:999px}
 *::-webkit-scrollbar-button{display:none;width:0;height:0}
 *::-webkit-scrollbar-corner{background:transparent}
@@ -556,7 +557,7 @@ body.selecting canvas{cursor:crosshair}
       <div class="kd-list" id="kd-list"></div>
       <div class="kd-foot"><button type="button" class="btn ghost" id="kd-reset">Reset to defaults</button><button type="button" class="btn" id="kd-done">Done</button></div>
     </dialog>
-    <button class="dtab" type="button" id="drawer-tab" aria-label="Show This map and Checkout" title="Show This map and Checkout"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><span>This map · <b>Checkout</b></span></button>
+    <button class="dtab" type="button" id="drawer-tab" aria-label="Show the tile summary and checkout" title="Show the tile summary and checkout"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><span>Tile summary · <b>Checkout</b></span></button>
     <aside class="drawer" id="drawer" aria-label="Parts and cart">
       <button class="dhide" type="button" id="drawer-hide" aria-label="Hide this panel" title="Hide this panel for more room"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
       <button class="close" type="button" id="drawer-close" aria-label="Close">&times;</button>
@@ -632,7 +633,7 @@ const store = {
   get(k){ try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
   set(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
 };
-const VER = '20261119-0100';
+const VER = '20261119-0115';
 /* ---------- keyboard shortcuts, rebindable (15 Nov 2026) ---------- */
 const KEY_DEFAULT = { turn:'r', erase:'e', select:'s', view:'v', move:'m', boards:'b', tiles:'t', frame:'f', zin:'=', zout:'-', del:'delete' };
 const KEY_ALIAS = { zin:['+'], zout:['_'], del:['backspace'] };          // extra keys that also work while the default is kept
@@ -2172,7 +2173,9 @@ function setArrange(v){
   if (v){ selectTile(null, true); setCursor(null); pickBlock(null, true); setErase(false); $('colour-pop').hidden = true; }
   buildBoard(); idleHint();
 }
-$('m-tiles').onclick = () => setArrange(false);
+// 19 Nov 2026: clicking the tab you are already on hides its bar (tile tray, board bar, minis bar) for more room; again brings it back
+function toggleDock(){ const v = !document.body.classList.contains('dock-shut'); document.body.classList.toggle('dock-shut', v); toast(v ? 'Tile tray hidden. Click Tiles to bring it back.' : 'Tile tray back', 'info'); }
+$('m-tiles').onclick = () => { if (!arrange && !(typeof minisMode !== 'undefined' && minisMode)) { toggleDock(); return; } document.body.classList.remove('dock-shut'); setArrange(false); };
 $('mb-add').onclick = () => $('t-addb').click();   // the same as the + in the tool rail, where it was easy to miss (14 Nov 2026)
 function setLvOpen(open){
   $('lv-btns').classList.toggle('shut', !open); $('lv-tog').setAttribute('aria-expanded', String(open));
@@ -2181,7 +2184,7 @@ function setLvOpen(open){
 }
 $('lv-tog').onclick = () => setLvOpen($('lv-btns').classList.contains('shut'));
 try { if (localStorage.getItem('tf-lv-open') === '0') setLvOpen(false); } catch {}
-$('m-boards').onclick = () => setArrange(true);
+$('m-boards').onclick = () => { if (arrange && !placing){ $('movebar').hidden = !$('movebar').hidden; return; } setArrange(true); };
 $('mb-done').onclick = () => setArrange(false);   // back to tiles
 
 function clearAll(){
