@@ -182,6 +182,8 @@ kbd{display:inline-block;min-width:1.6em;padding:1px 6px;border-radius:6px;borde
 body.viewing .top,body.viewing .dock,body.viewing .drawer,body.viewing .rail,body.viewing .zoom,body.viewing .hint,body.viewing .tip,body.viewing #movebar{display:none!important}
 body.viewing .app{grid-template-rows:minmax(0,1fr)!important}
 body.viewing .main{grid-template-columns:minmax(0,1fr)!important}
+.dhide,.dtab{display:none}
+body.viewing .dtab{display:none!important}
 .view-close{position:absolute;top:max(12px,env(safe-area-inset-top,0px));right:max(12px,env(safe-area-inset-right,0px));z-index:6;padding:10px 16px;min-height:44px;border-radius:999px;border:1px solid var(--line);background:color-mix(in srgb,var(--surface) 92%,transparent);color:var(--ink);font:600 .9rem var(--font-hud,inherit);cursor:pointer;box-shadow:0 6px 18px rgba(0,0,0,.3)}
 .view-close[hidden]{display:none}.view-close:focus-visible{outline:3px solid var(--gold);outline-offset:2px}
 .hint{cursor:pointer;position:absolute;left:50%;bottom:12px;transform:translateX(-50%);max-width:calc(100% - 24px);display:flex;align-items:center;gap:10px;padding:8px 12px;border-radius:12px;background:color-mix(in srgb,var(--surface) 94%,transparent);border:1px solid var(--line);font-size:.9rem;z-index:2}
@@ -318,9 +320,19 @@ body.selecting canvas{cursor:crosshair}
 .subs button{flex:none;padding:3px 10px;border-radius:999px;border:1px solid var(--line);background:transparent;color:var(--muted);font:inherit;font-weight:700;font-size:.76rem;cursor:pointer}
 .subs button:hover{color:var(--ink)}
 .subs button[aria-pressed="true"]{background:color-mix(in srgb,var(--gold) 18%,transparent);border-color:var(--gold);color:var(--gold)}
-.nudge{flex:none;width:30px;border-radius:8px;border:1px solid var(--line);background:var(--surface);cursor:pointer;font-weight:800;font-size:1.1rem}
-.nudge:disabled{opacity:.3;cursor:default}
-.strip{flex:1;min-width:0;display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x proximity;padding-bottom:4px;scrollbar-width:thin}
+.nudge{flex:none;align-self:center;width:32px;height:56px;display:grid;place-items:center;padding:0;border-radius:12px;border:1px solid var(--line);background:color-mix(in srgb,var(--surface) 92%,transparent);color:var(--ink);cursor:pointer;transition:background .15s,color .15s,opacity .15s}
+.nudge svg{width:18px;height:18px}
+.nudge:hover:not(:disabled){background:var(--surface-2);color:var(--gold)}
+.nudge:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.nudge:disabled{opacity:.25;cursor:default}
+/* 19 Nov 2026: every scrollbar matches the zoom slider: a slim rounded track in the line colour, the accent thumb, no arrow buttons */
+*{scrollbar-width:thin;scrollbar-color:var(--gold) color-mix(in srgb,var(--line) 80%,transparent)}
+*::-webkit-scrollbar{width:6px;height:6px}
+*::-webkit-scrollbar-track{background:color-mix(in srgb,var(--line) 80%,transparent);border-radius:999px}
+*::-webkit-scrollbar-thumb{background:var(--gold);border-radius:999px}
+*::-webkit-scrollbar-button{display:none;width:0;height:0}
+*::-webkit-scrollbar-corner{background:transparent}
+.strip{flex:1;min-width:0;display:flex;gap:8px;overflow-x:auto;scroll-snap-type:x proximity;padding-bottom:4px}
 .card{flex:none;width:118px;scroll-snap-align:start;display:flex;flex-direction:column;gap:4px;padding:6px;border-radius:10px;border:2px solid var(--line);background:var(--surface);cursor:grab;user-select:none;-webkit-user-select:none;touch-action:pan-x;text-align:left}
 .card[aria-pressed="true"]{border-color:var(--gold);box-shadow:0 0 0 2px color-mix(in srgb,var(--gold) 35%,transparent)}
 .card img{width:100%;aspect-ratio:4/3;border-radius:6px;background:var(--scene-bg);object-fit:cover;pointer-events:none;-webkit-user-drag:none}
@@ -363,7 +375,21 @@ body.selecting canvas{cursor:crosshair}
 @media (min-width:821px){
   .top,.drawer,.hint,.tip,.toast{zoom:.9}
   .dock{zoom:calc(.9 * var(--dz,1))}
-  .main{grid-template-columns:minmax(0,1fr) 270px}
+  .main{grid-template-columns:minmax(0,1fr) 270px;transition:grid-template-columns .25s ease}
+  /* 19 Nov 2026: the This map / Cart panel slides away to the right for more room; a pull tab brings it back */
+  .drawer{position:relative}
+  .dhide{position:absolute;left:-23px;top:50%;transform:translateY(-50%);z-index:3;display:grid;place-items:center;width:23px;height:64px;padding:0;border:1px solid var(--line);border-right:0;border-radius:12px 0 0 12px;background:color-mix(in srgb,var(--surface) 92%,transparent);color:var(--gold);cursor:pointer;box-shadow:-6px 0 18px rgba(0,0,0,.25)}
+  .dhide:hover{background:var(--surface-2)}
+  .dhide svg{width:16px;height:16px}
+  body.drawer-shut .main{grid-template-columns:minmax(0,1fr) 0}
+  body.drawer-shut .drawer{visibility:hidden;border-left:0}
+  .dtab{position:absolute;right:0;top:max(350px,42%);z-index:3;display:flex;flex-direction:column;align-items:center;gap:8px;padding:12px 6px;border:1px solid var(--line);border-right:0;border-radius:12px 0 0 12px;background:color-mix(in srgb,var(--surface) 92%,transparent);color:var(--ink);cursor:pointer;font:700 .72rem/1 var(--font-hud);letter-spacing:.12em;text-transform:uppercase;box-shadow:-6px 0 18px rgba(0,0,0,.25)}
+  .dtab span{writing-mode:vertical-rl;transform:rotate(180deg)}
+  .dtab b{color:var(--gold);font-weight:700}
+  .dtab svg{width:16px;height:16px;color:var(--gold)}
+  .dtab:hover{background:var(--surface-2)}
+  .dtab:focus-visible,.dhide:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+  body:not(.drawer-shut) .dtab{display:none}
   .zoom{transform:scale(.9);transform-origin:100% 0}
   .dock{display:grid;grid-template-columns:auto auto minmax(0,1fr);column-gap:10px;align-items:stretch}
   .dtop{grid-column:1;grid-row:1;flex-direction:column;align-items:stretch;gap:6px;min-height:0}
@@ -373,13 +399,25 @@ body.selecting canvas{cursor:crosshair}
   .subs{grid-column:2;grid-row:1;flex-direction:column;overflow-x:hidden;overflow-y:auto;gap:4px;padding-left:10px;border-left:1px solid var(--line);align-content:flex-start}
   .subs button{text-align:left}
   .bar{grid-column:3;grid-row:1;min-width:0}
+  /* 19 Nov 2026: the tray's height is set here, not by the category lists. Ranges and types scroll in their own columns, and the
+     tile cards grow to fill the full height of the tray, so the thumbnails are as big as the tray allows. */
+  .dock{grid-template-rows:236px}
+  .dtop,.subs{min-height:0;overflow:hidden}
+  .dtop .cats{flex:1 1 0;min-height:0}
+  .subs{overflow-y:auto;scrollbar-width:thin}
+  .strip{container-type:size;height:100%}
+  .cw{--imgh:calc(100cqh - 82px)}
+  .cw:has(.own){--imgh:calc(100cqh - 112px)}
+  .cw .card{width:calc(var(--imgh) * 4 / 3 + 16px)}
+  .cw .card img{height:var(--imgh);aspect-ratio:auto;object-fit:contain}
+  .cw .fav{top:calc(var(--imgh) - 24px)}
 }
 </style>
 </head>
 <body>
 <div class="app">
   <header class="top">
-    <a class="back" href="/" aria-label="Back to Terraform home">&larr; <img class="logo-d" src="../img/logo/terraform-symbol-2tier-white.png" alt=""><img class="logo-l" src="../img/logo/terraform-symbol-2tier-black.png" alt=""><span>Terraform</span></a>
+    <a class="back" href="index.html" aria-label="Back to Terraform home">&larr; <img class="logo-d" src="img/logo/terraform-symbol-2tier-white.png" alt=""><img class="logo-l" src="img/logo/terraform-symbol-2tier-black.png" alt=""><span>Terraform</span></a>
     <h1>Studio</h1>
     <div class="name"><label for="map-name" class="hud" hidden>Map name</label><input id="map-name" value="Untitled map" aria-label="Map name"></div>
     <div class="savebar" role="group" aria-label="Save and browse designs">
@@ -518,7 +556,9 @@ body.selecting canvas{cursor:crosshair}
       <div class="kd-list" id="kd-list"></div>
       <div class="kd-foot"><button type="button" class="btn ghost" id="kd-reset">Reset to defaults</button><button type="button" class="btn" id="kd-done">Done</button></div>
     </dialog>
+    <button class="dtab" type="button" id="drawer-tab" aria-label="Show This map and Checkout" title="Show This map and Checkout"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg><span>This map · <b>Checkout</b></span></button>
     <aside class="drawer" id="drawer" aria-label="Parts and cart">
+      <button class="dhide" type="button" id="drawer-hide" aria-label="Hide this panel" title="Hide this panel for more room"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
       <button class="close" type="button" id="drawer-close" aria-label="Close">&times;</button>
       <div class="dtabs" role="tablist">
         <button role="tab" id="tab-parts" aria-selected="true" type="button">This map</button>
@@ -564,9 +604,9 @@ body.selecting canvas{cursor:crosshair}
     </div>
     <div class="subs" id="subs" role="group" aria-label="Tile types"></div>
     <div class="bar">
-      <button class="nudge" type="button" id="nudge-l" aria-label="Scroll tiles left">&lsaquo;</button>
+      <button class="nudge" type="button" id="nudge-l" aria-label="Scroll tiles left"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
       <div class="strip" id="strip" aria-label="Tiles in this category"></div>
-      <button class="nudge" type="button" id="nudge-r" aria-label="Scroll tiles right">&rsaquo;</button>
+      <button class="nudge" type="button" id="nudge-r" aria-label="Scroll tiles right"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
       <div class="pick">
         <label for="pick" class="hud">All in category</label>
         <select id="pick"></select>
@@ -592,7 +632,7 @@ const store = {
   get(k){ try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
   set(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
 };
-const VER = '20261118-2300';
+const VER = '20261119-0100';
 /* ---------- keyboard shortcuts, rebindable (15 Nov 2026) ---------- */
 const KEY_DEFAULT = { turn:'r', erase:'e', select:'s', view:'v', move:'m', boards:'b', tiles:'t', frame:'f', zin:'=', zout:'-', del:'delete' };
 const KEY_ALIAS = { zin:['+'], zout:['_'], del:['backspace'] };          // extra keys that also work while the default is kept
@@ -618,13 +658,13 @@ function groupOf(m){
   if (c === 'Interiors') return [1001, 1010, 1011, 1012].includes(n) ? 'Base' : [1002, 1013, 1014].includes(n) ? 'Walls' : [1004, 1005, 1015, 1016].includes(n) ? 'Corners' : [1006, 1007].includes(n) ? 'Corridors' : n === 1003 ? 'Doors' : [1008, 1009].includes(n) ? 'Diagonal' : 'Misc';
   if (c === 'Castles') return n <= 2009 ? 'Base' : n <= 2019 ? 'Half height' : n <= 2029 ? 'Double height' : n <= 2049 ? 'Round' : n <= 2059 ? 'Angled' : 'Misc';
   if (c === 'Caves') return (n <= 3004 || n === 3009 || n === 3010) ? 'Base' : n <= 3008 ? 'Slopes' : n <= 3019 ? 'Corners' : 'Misc';
-  if (c === 'Riverbed') return n <= 4019 ? 'Ledges' : n <= 4039 ? 'Corners & jogs' : n <= 4059 ? 'Stones' : 'Misc';
+  if (c === 'Riverbed') return n <= 4019 ? 'Ledges' : n <= 4039 ? 'Corners & staggers' : n <= 4059 ? 'Stones' : 'Misc';
   if (c === 'Coasts') return n <= 5099 ? 'Shore' : (n >= 5111 && n <= 5113) ? 'Landing' : n <= 5199 ? 'Jetty' : (n >= 5210 && n <= 5229) ? 'Boats' : 'Accessories';   // boats and masts (18 Nov 2026)   // P5110 and P5114 are run pieces, not landings (17 Nov 2026)
   if (c === FLUIDTAB) return n <= 4109 ? 'Edges' : n <= 4119 ? 'Slabs' : n <= 4129 ? 'Corners' : n <= 4139 ? 'Angled' : n <= 4149 ? 'Shallows' : n <= 4159 ? 'Jetty water' : 'Misc';
   return 'Misc';
 }
 const GROUP_ORDER = { Coasts:['Shore', 'Jetty', 'Landing', 'Accessories', 'Boats'], Interiors:['Base', 'Walls', 'Corners', 'Corridors', 'Doors', 'Diagonal', 'Misc'], Castles:['Base', 'Half height', 'Double height', 'Round', 'Angled', 'Misc'], Caves:['Base', 'Slopes', 'Corners', 'Misc'],
-  Riverbed:['Ledges', 'Corners & jogs', 'Stones', 'Misc'], [FLUIDTAB]:['Edges', 'Slabs', 'Corners', 'Angled', 'Shallows', 'Jetty water', 'Misc'] };
+  Riverbed:['Ledges', 'Corners & staggers', 'Stones', 'Misc'], [FLUIDTAB]:['Edges', 'Slabs', 'Corners', 'Angled', 'Shallows', 'Jetty water', 'Misc'] };
 
 /* ---------- state ---------- */
 let W = 12, L = 8, level = 0, rot = 0, view = false, erase = false, selMode = false, multi = new Set(), hush = 0;
@@ -1060,12 +1100,23 @@ function colsHit(A, B, tol = 0.3){                         // solid against soli
       if (iv[n] + ys < jv[q+1] + yl - tol && iv[n+1] + ys > jv[q] + yl + tol) return true; }
   return false;
 }
-const placedOf = b => placedCols(b.code, b.c, b.r, b.rot, b.t45, b.level, b.pose);
+const placedOf = b => BY[b.code].mast ? mastPlaced(b) : placedCols(b.code, b.c, b.r, b.rot, b.t45, b.level, b.pose);
+// a mast's real shape where it stands: its boat's place, turn and tilt, the socket, then its own turn (19 Nov 2026: a sail turned into a lamp or the other mast)
+const mcCache = new Map();
+function mastPlaced(b){
+  const M = mastMatrix(b), geo = geos[b.code]; if (!M || !geo) return null;
+  const k = b.code + '|' + M.elements.map(v => v.toFixed(3)).join(','); let cols = mcCache.get(k);
+  if (!cols){ const src = geo.getAttribute('position'), v = new THREE.Vector3(), arr = new Float32Array(src.count*3);
+    for (let i = 0; i < src.count; i++){ v.fromBufferAttribute(src, i).applyMatrix4(M); arr[i*3] = v.x; arr[i*3+1] = v.y; arr[i*3+2] = v.z; }
+    cols = new Map(); for (const [i, j, iv] of columnsOf(arr, GF)) cols.set(i + ',' + j, iv);
+    if (mcCache.size > 300) mcCache.clear(); mcCache.set(k, cols); }
+  return { cols, at:() => 0 };
+}
 // a boat or mast against everything round it except the water, lava and sand it floats on
 function boatHits(code, c, r, ro, pose, skip, t45){
   const A = placedCols(code, c, r, ro, t45, 0, pose); if (!A) return null;
   for (const b of blocks){ if (skip(b) || isFluid(b.code) || Math.abs(b.c - c) > 5 || Math.abs(b.r - r) > 5) continue;
-    if (BY[b.code].mast) continue; const B = placedOf(b); if (B && colsHit(A, B)) return b; }
+    const B = placedOf(b); if (B && colsHit(A, B, BY[b.code].mast ? 0.5 : 0.3)) return b; }
   return null;
 }
 const hitName = b => BY[b.code].float ? 'the other boat' : BY[b.code].mast ? 'the mast' : 'the ' + nm(BY[b.code]).replace(/^Jetty /, '').toLowerCase();
@@ -1264,12 +1315,15 @@ function stepAt(c, r){                                     // the mast socket ne
   return best;
 }
 const mastsOn = bt => blocks.filter(a => BY[a.code].mast && (stepAt(a.c, a.r) || {}).bt === bt);
-function checkMast(m, c, r, ro){
+function checkMast(m, c, r, ro, t45){
   const f = stepAt(c, r);
   if (!f) return { ok:false, why:'Masts go in a mast socket: one on P5212, two on P5216.', lvl:0 };
   const at = { c:Math.floor(f.s.wx/P), r:Math.floor(f.s.wz/P) };
   if (blocks.some(a => a.id !== check.skip && BY[a.code].mast && (() => { const g = stepAt(a.c, a.r); return g && g.bt === f.bt && g.s.i === f.s.i; })()))
     return { ok:false, why:'That socket already has a mast.', lvl:f.bt.level, at };
+  const me = mastPlaced({ code:m.code, c, r, rot:ro, t45 });       // its pole, sail and nest against everything round it but its own boat
+  if (me) for (const b of blocks){ if (b.id === check.skip || b === f.bt || isFluid(b.code) || Math.abs(b.c - c) > 6 || Math.abs(b.r - r) > 6) continue;
+    const B = placedOf(b); if (B && colsHit(me, B, 0.5)) return { ok:false, why:`It would hit ${hitName(b)}.`, lvl:f.bt.level, at }; }
   return { ok:true, why:'Steps into the boat.', lvl:f.bt.level, at };
 }
 function mastMatrix(mb){                                   // the boat's place, turn and tilt, then the socket, then the mast's own turn
@@ -1296,7 +1350,7 @@ function check(m, c, r, ro, lv, h45){
   // reaching into the next square, a deck over a stump in the board, a lamp's base on rough rock. Accessories get 0.5 mm, as the
   // Studio draws them up to 0.375 mm low on a deck (half levels); the prints are right.
   { const [w0, h0] = foot(m, ro);
-    const others = blocks.filter(b => b.id !== check.skip && !isFluid(b.code) && !BY[b.code].float && !BY[b.code].mast && b.c <= c + w0 + 1 && b.r <= r + h0 + 1 && b.c >= c - 6 && b.r >= r - 6);
+    const others = blocks.filter(b => b.id !== check.skip && !isFluid(b.code) && !BY[b.code].float && b.c <= c + w0 + 1 && b.r <= r + h0 + 1 && b.c >= c - 6 && b.r >= r - 6);
     if (others.length){ const A = placedCols(m.code, c, r, ro, h45, res.lvl);
       if (A) for (const b of others){ const B = placedOf(b); if (B && colsHit(A, B, (m.acc || BY[b.code].acc) ? 0.5 : 0.3)) return { ...res, ok:false, why:`It would hit ${hitName(b)}.` }; } } }
   const near = blocks.filter(b => BY[b.code].float && b.pose && b.id !== check.skip && Math.abs(b.c - c) <= 5 && Math.abs(b.r - r) <= 5);
@@ -1307,7 +1361,7 @@ function check(m, c, r, ro, lv, h45){
 }
 function checkCore(m, c, r, ro, lv, h45){            // h45: a one-socket accessory turned the extra 45 degrees
   if (m.float) return checkFloat(m, c, r, ro, check.skip, h45);
-  if (m.mast) return checkMast(m, c, r, ro);
+  if (m.mast) return checkMast(m, c, r, ro, h45);
   if (m.acc && m.holes && m.holes.length) return checkAcc(m, c, r, ro, lv, h45 && turns45(m));
   const cs = cellsOf(m, c, r, ro), L = Math.floor(lv), lvl = L;
   if (cs.some(([x,z]) => !inBoard(x, z))) return { ok:false, why:'Off the edge of the board.', lvl };
@@ -2141,6 +2195,7 @@ function clearAll(){
 $('clear-btn').onclick = clearAll;
 $('map-name').addEventListener('change', changed);
 addEventListener('keydown', e => {
+  if (view && e.key === 'Escape' && !$('keys-dlg').open){ e.preventDefault(); setView(false); return; }   // Esc always leaves view mode (19 Nov 2026)
   if (e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT') return;
   if ($('keys-dlg').open) return;
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z'){ e.preventDefault(); doUndo(); return; }
@@ -2602,6 +2657,10 @@ function applyMap(map, first){
 const DS = { db:null, uid:null, user:null, mine:[], shared:[], tab:'mine', unsubMine:null, unsubShared:null, armed:null, ready:false };
 const slug = t => (t || 'untitled').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 60) || 'untitled';
 const esc = t => String(t).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[c]);
+function shutDrawer(v){ document.body.classList.toggle('drawer-shut', v); store.set('tf-drawer-shut', v ? 1 : 0); (v ? $('drawer-tab') : $('drawer-hide')).focus({ preventScroll:true }); }
+$('drawer-hide').onclick = () => shutDrawer(true);
+$('drawer-tab').onclick = () => shutDrawer(false);
+if (store.get('tf-drawer-shut')) document.body.classList.add('drawer-shut');
 function snapshotMap(){
   return { name:($('map-name').value || 'Untitled map').trim().slice(0, 80), boards:boards.map(b => ({ x:b.x, z:b.z, w:b.w, l:b.l, ...(b.fin && b.fin !== 'mdf' ? { fin:b.fin } : {}) })),
     blocks:blocks.map(b => ({ code:b.code, c:b.c, r:b.r, rot:b.rot, level:b.level, ...(b.t45 ? { t45:1 } : {}) })), colour, fluid:fluidMode, at:Date.now() };
