@@ -592,7 +592,7 @@ const store = {
   get(k){ try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
   set(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
 };
-const VER = '20261118-1730';
+const VER = '20261118-2000';
 /* ---------- keyboard shortcuts, rebindable (15 Nov 2026) ---------- */
 const KEY_DEFAULT = { turn:'r', erase:'e', select:'s', view:'v', move:'m', boards:'b', tiles:'t', frame:'f', zin:'=', zout:'-', del:'delete' };
 const KEY_ALIAS = { zin:['+'], zout:['_'], del:['backspace'] };          // extra keys that also work while the default is kept
@@ -1015,8 +1015,26 @@ function columnsOf(pos, g = G){
   return out;
 }
 // a lamp or stump turned the extra 45 degrees (17 Nov 2026): its cells are turned about the socket, as spin45 turns the mesh
+// columns turned 45 degrees about (px, pz) in column units. On the coarse grid each column is spread to where its corners land
+// (cautious: it errs on the side of a clash); on the fine grid each new column takes exactly what lies under its middle (18 Nov 2026)
+function rot45(out, px, pz, exact){
+  const k = Math.SQRT1_2, res = new Map();
+  if (!exact){ for (const [key0, iv] of out){ const [i, j] = key0.split(',').map(Number);
+      for (const [a, b] of [[0.25,0.25],[0.75,0.25],[0.25,0.75],[0.75,0.75]]){ const x = i + a - px, z = j + b - pz;
+        const nk = Math.floor(px + x*k - z*k) + ',' + Math.floor(pz + x*k + z*k); if (!res.has(nk)) res.set(nk, iv); } }
+    return res; }
+  let i0 = 1e9, i1 = -1e9, j0 = 1e9, j1 = -1e9;
+  for (const key0 of out.keys()){ const [i, j] = key0.split(',').map(Number), x = i + 0.5 - px, z = j + 0.5 - pz, nx = px + x*k - z*k, nz = pz + x*k + z*k;
+    i0 = Math.min(i0, nx); i1 = Math.max(i1, nx); j0 = Math.min(j0, nz); j1 = Math.max(j1, nz); }
+  for (let I = Math.floor(i0) - 1; I <= Math.ceil(i1) + 1; I++) for (let J = Math.floor(j0) - 1; J <= Math.ceil(j1) + 1; J++){
+    const x = I + 0.5 - px, z = J + 0.5 - pz, sk = Math.floor(px + x*k + z*k) + ',' + Math.floor(pz - x*k + z*k), iv = out.get(sk);
+    if (iv) res.set(I + ',' + J, iv); }
+  return res;
+}
 function turn45(out, code, c, r, ro, g = G){
-  const [hx, hz] = holesOf(BY[code], c, r, ro)[0], px = hx*P/g, pz = hz*P/g, k = Math.SQRT1_2, res = new Map();
+  const [hx, hz] = holesOf(BY[code], c, r, ro)[0];
+  return rot45(out, hx*P/g, hz*P/g, g !== G);
+  const k = Math.SQRT1_2, px = hx*P/g, pz = hz*P/g, res = new Map();
   for (const [key0, iv] of out){ const [i, j] = key0.split(',').map(Number);
     for (const [a, b] of [[0.25,0.25],[0.75,0.25],[0.25,0.75],[0.75,0.75]]){ const x = i + a - px, z = j + b - pz;
       const nk = Math.floor(px + x*k - z*k) + ',' + Math.floor(pz + x*k + z*k); if (!res.has(nk)) res.set(nk, iv); } }
@@ -1035,11 +1053,11 @@ function placedCols(code, c, r, ro, t45, level, pose, g = GF){
   return { cols, at:(k) => { const [i, j] = k.split(',').map(Number), dx = (i + 0.5)*g - cx, dz = (j + 0.5)*g - cz;
     return pose.y + bx*(dx*co - dz*si) + bz*(dx*si + dz*co); } };
 }
-function colsHit(A, B){                                    // solid against solid, anywhere they share a column (0.3 mm allowed for touching)
+function colsHit(A, B, tol = 0.3){                         // solid against solid, anywhere they share a column (tol: allowed for touching)
   const [s, l] = A.cols.size <= B.cols.size ? [A, B] : [B, A];
   for (const [k, iv] of s.cols){ const jv = l.cols.get(k); if (!jv) continue; const ys = s.at(k), yl = l.at(k);
     for (let n = 0; n < iv.length; n += 2) for (let q = 0; q < jv.length; q += 2)
-      if (iv[n] + ys < jv[q+1] + yl - 0.3 && iv[n+1] + ys > jv[q] + yl + 0.3) return true; }
+      if (iv[n] + ys < jv[q+1] + yl - tol && iv[n+1] + ys > jv[q] + yl + tol) return true; }
   return false;
 }
 const placedOf = b => placedCols(b.code, b.c, b.r, b.rot, b.t45, b.level, b.pose);
@@ -1054,9 +1072,7 @@ const hitName = b => BY[b.code].float ? 'the other boat' : BY[b.code].mast ? 'th
 function worldCols(code, c, r, ro, h45, g = G){
   if (BY[code] && BY[code].mast) return null;
   if (h45 && BY[code] && BY[code].float){ const k = `${code}|${c}|${r}|${ro}|m45|${g}`; if (wcCache.has(k)) return wcCache.get(k); const base = worldCols(code, c, r, ro, false, g); if (!base) return null;
-    const [w, h] = foot(BY[code], ro), px = (c + w/2)*P/g, pz = (r + h/2)*P/g, q = Math.SQRT1_2, t = new Map();
-    for (const [key0, iv] of base){ const [i, j] = key0.split(',').map(Number);
-      for (const [a, b] of [[0.25,0.25],[0.75,0.25],[0.25,0.75],[0.75,0.75]]){ const x = i + a - px, z = j + b - pz; const nk = Math.floor(px + x*q - z*q) + ',' + Math.floor(pz + x*q + z*q); if (!t.has(nk)) t.set(nk, iv); } }
+    const [w, h] = foot(BY[code], ro), t = rot45(base, (c + w/2)*P/g, (r + h/2)*P/g, g !== G);
     wcCache.set(k, t); return t; }
   if (h45 && turns45(BY[code])){ const k = `${code}|${c}|${r}|${ro}|45|${g}`; if (wcCache.has(k)) return wcCache.get(k); const base = worldCols(code, c, r, ro, false, g); if (!base) return null; const t = turn45(base, code, c, r, ro, g); wcCache.set(k, t); return t; }
   const k = `${code}|${c}|${r}|${ro}|${g}`; if (wcCache.has(k)) return wcCache.get(k);
@@ -1268,6 +1284,13 @@ const reMast = () => blocks.forEach(b => { if (BY[b.code].mast){ const o = meshe
 function check(m, c, r, ro, lv, h45){
   const res = checkCore(m, c, r, ro, lv, h45);
   if (!res.ok || m.float || m.mast || isFluid(m.code)) return res;
+  // every tile and accessory against the real shapes of the pieces near it, water, lava and sand aside (18 Nov 2026): a deck's point
+  // reaching into the next square, a deck over a stump in the board, a lamp's base on rough rock. Accessories get 0.5 mm, as the
+  // Studio draws them up to 0.375 mm low on a deck (half levels); the prints are right.
+  { const [w0, h0] = foot(m, ro);
+    const others = blocks.filter(b => b.id !== check.skip && !isFluid(b.code) && !BY[b.code].float && !BY[b.code].mast && b.c <= c + w0 + 1 && b.r <= r + h0 + 1 && b.c >= c - 6 && b.r >= r - 6);
+    if (others.length){ const A = placedCols(m.code, c, r, ro, h45, res.lvl);
+      if (A) for (const b of others){ const B = placedOf(b); if (B && colsHit(A, B, (m.acc || BY[b.code].acc) ? 0.5 : 0.3)) return { ...res, ok:false, why:`It would hit ${hitName(b)}.` }; } } }
   const near = blocks.filter(b => BY[b.code].float && b.pose && b.id !== check.skip && Math.abs(b.c - c) <= 5 && Math.abs(b.r - r) <= 5);
   if (!near.length) return res;
   const A = placedCols(m.code, c, r, ro, h45, res.lvl); if (!A) return res;
@@ -1353,6 +1376,7 @@ function removeBlock(id, record=true){
 }
 function supporting(b){
   if (BY[b.code].mastSteps && mastsOn(b).length) return true;   // a boat holds its masts (18 Nov 2026)
+  if (!isFluid(b.code) && !BY[b.code].acc && restingOn(b).some(a => BY[a.code].float)) return true;   // a deck with a boat on it
   if (isFluid(b.code) || BY[b.code].acc) return false;   // nor do accessories: one in the board sits a half level below deck accessories beside it, which aren't on it (16 Nov 2026)          // water and lava hold nothing up (a jetty stands on its posts), so they can always come out from under (16 Nov 2026)
   const top = hb(b) + tallOf(BY[b.code]), cs = cellsOf(BY[b.code], b.c, b.r, b.rot);
   return cs.some(([x,z]) => occ.has(key(top, x, z)))
@@ -1492,9 +1516,20 @@ function restingOn(b){
   if (BY[b.code].mastSteps) return mastsOn(b);
   if (BY[b.code].acc) return [];
   const top = hb(b) + tallOf(BY[b.code]), cs = cellsOf(BY[b.code], b.c, b.r, b.rot);
-  return blocks.filter(a => a !== b && hb(a) === top && (BY[a.code].acc
+  return blocks.filter(a => a !== b && hb(a) === top && (BY[a.code].acc && !BY[a.code].float
     ? holesOf(BY[a.code], a.c, a.r, a.rot).some(([x,z]) => cs.some(([u,v]) => (u === x || u === x-1) && (v === z || v === z-1)))
-    : cellsOf(BY[a.code], a.c, a.r, a.rot).some(([x,z]) => cs.some(([u,v]) => u === x && v === z))));
+    : blockCells(a).some(([x,z]) => cs.some(([u,v]) => u === x && v === z))));   // a boat on a deck rests on it (18 Nov 2026)
+}
+// everything resting on a piece, and on those in turn (18 Nov 2026)
+function riders(b){ const out = [b]; for (let i = 0; i < out.length; i++) for (const a of restingOn(out[i])) if (!out.includes(a)) out.push(a); return out.slice(1); }
+const isAccy = a => !!BY[a.code].acc;                    // accessories, boats and masts: these go with the piece they sit on
+// remove a piece and the accessories on it in one step; a tile with another tile on it stays (18 Nov 2026)
+function removeWithRiders(b){
+  const up = riders(b); if (up.some(a => !isAccy(a))){ toast('Remove the tile on top of it first'); return false; }
+  hush++; [b, ...up].forEach(x => removeBlock(x.id, false)); hush--;
+  undo.push({ op:'clear', list:[b, ...up] }); changed();
+  toast(up.length ? `Removed ${b.code} and the ${up.length} accessor${up.length === 1 ? 'y' : 'ies'} on it. Undo brings them back.` : `Removed ${b.code}`);
+  return true;
 }
 // a tile with things on it can still turn, as long as the turned tile fits and everything on it still fits on top (16 Nov 2026)
 function turnUnder(b){
@@ -1529,8 +1564,7 @@ function turnBlock(b){
 }
 function deletePicked(){
   const b = pickedBlock(); if (!b) return false;
-  if (supporting(b)){ toast('Remove the tile on top of it first'); return true; }
-  picked = null; removeBlock(b.id); toast(`Removed ${b.code}`); idleHint(); return true;
+  if (removeWithRiders(b)) picked = null; idleHint(); return true;
 }
 // a tile chosen from the bar goes straight onto the highlighted square
 function choose(m){
@@ -1784,39 +1818,47 @@ function boxPick(x0, y0, x1, y1){
   return out;
 }
 // would the whole group fit shifted by (dc, dr)? Lifts it out, puts each piece back lowest first (water, then tiles, then accessories), then undoes that
+// accessories sitting on the selection that aren't in it are taken off so the rest can move (18 Nov 2026); a tile on it still blocks
+function groupRiders(list){
+  const ids = new Set(list.map(b => b.id)), extra = [];
+  for (const b of list) for (const a of riders(b)) if (!ids.has(a.id) && !extra.includes(a)) extra.push(a);
+  const tile = extra.find(a => !isAccy(a)); return { extra, tile };
+}
 function groupTry(list, dc, dr){
-  const ids = new Set(list.map(b => b.id));
-  const on = blocks.find(a => !ids.has(a.id) && list.some(b => restingOn(b).includes(a)));
-  if (on) return { ok:false, why:`${on.code} sits on the selection. Select it too, or move it first.` };
+  const { extra, tile } = groupRiders(list);
+  if (tile) return { ok:false, why:`${tile.code} sits on the selection. Select it too, or move it first.` };
   const rank = b => isFluid(b.code) ? 0 : BY[b.code].acc ? 2 : 1;
   const order = [...list].sort((a, b) => a.level - b.level || rank(a) - rank(b));
-  hush++; list.forEach(b => removeBlock(b.id, false));
+  hush++; extra.forEach(b => removeBlock(b.id, false)); list.forEach(b => removeBlock(b.id, false));
   const put = []; let why = null;
   for (const b of order){
     const nb = { ...b, c:b.c + dc, r:b.r + dr }, res = check(BY[b.code], nb.c, nb.r, nb.rot, b.level, b.t45);
     if (!res.ok){ why = `${b.code}: ${res.why}`; break; }
     nb.level = res.lvl; addBlock(nb, false); put.push(nb);
   }
-  put.forEach(nb => removeBlock(nb.id, false)); list.forEach(b => addBlock(b, false)); hush--;
-  return why ? { ok:false, why } : { ok:true, put };
+  put.forEach(nb => removeBlock(nb.id, false)); list.forEach(b => addBlock(b, false)); extra.forEach(b => addBlock(b, false)); hush--;
+  return why ? { ok:false, why } : { ok:true, put, extra };
 }
 function gdragShow(){
   const g = gdrag; setMulti(multi, g.res && !g.res.ok ? multiBad : multiMat);
   for (const b of g.list){ const m = meshes.get(b.id); if (m){ m.position.x += g.dc*P; m.position.z += g.dr*P; } }
-  hint(g.res && !g.res.ok ? `${g.res.why} Let go and they go back.` : `Let go to drop ${g.list.length} tile${g.list.length === 1 ? '' : 's'} here.`, g.res && !g.res.ok ? 'bad' : 'ok');
+  const gone = g.res && g.res.ok && g.res.extra.length ? ` ${g.res.extra.length} accessor${g.res.extra.length === 1 ? 'y' : 'ies'} on it that ${g.res.extra.length === 1 ? 'isn’t' : 'aren’t'} selected will be removed.` : '';
+  hint(g.res && !g.res.ok ? `${g.res.why} Let go and they go back.` : `Let go to drop ${g.list.length} tile${g.list.length === 1 ? '' : 's'} here.${gone}`, g.res && !g.res.ok ? 'bad' : 'ok');
 }
 function gdragEnd(){
   const g = gdrag; gdrag = null; controls.enabled = true; if (!g.on) return;
   for (const b of g.list){ const m = meshes.get(b.id); if (m){ m.position.x -= g.dc*P; m.position.z -= g.dr*P; } }
   if (!g.dc && !g.dr){ setMulti(multi); return; }
   if (!g.res || !g.res.ok){ setMulti(multi); toast(g.res ? g.res.why : 'They can’t go there.'); return; }
-  hush++; g.list.forEach(b => removeBlock(b.id, false)); g.res.put.forEach(b => addBlock(b, false)); hush--;
-  undo.push({ op:'group', before:g.list, after:g.res.put }); changed(); setMulti(g.res.put.map(b => b.id));
+  const ex = g.res.extra || [];
+  hush++; ex.forEach(b => removeBlock(b.id, false)); g.list.forEach(b => removeBlock(b.id, false)); g.res.put.forEach(b => addBlock(b, false)); reMast(); hush--;
+  undo.push({ op:'group', before:[...g.list, ...ex], after:g.res.put }); changed(); setMulti(g.res.put.map(b => b.id));
+  if (ex.length) toast(`Moved. Removed ${ex.map(b => b.code).join(', ')}, which sat on the selection but wasn’t selected. Undo brings ${ex.length === 1 ? 'it' : 'them'} back.`);
 }
 function deleteMulti(){
-  const list = blocks.filter(b => multi.has(b.id)), ids = new Set(list.map(b => b.id));
-  const on = blocks.find(a => !ids.has(a.id) && list.some(b => restingOn(b).includes(a)));
-  if (on){ toast(`${on.code} sits on the selection. Select it too, or move it first.`); return; }
+  const sel0 = blocks.filter(b => multi.has(b.id)), { extra, tile } = groupRiders(sel0);
+  if (tile){ toast(`${tile.code} sits on the selection. Select it too, or move it first.`); return; }
+  const list = [...sel0, ...extra];                       // accessories on the selection go with it (18 Nov 2026)
   hush++; list.forEach(b => removeBlock(b.id, false)); hush--;
   undo.push({ op:'clear', list }); changed(); setMulti([]); toast(`Removed ${list.length} tile${list.length === 1 ? '' : 's'}. Undo brings them back.`);
 }
@@ -2463,8 +2505,7 @@ canvas.addEventListener('pointerup', e => {
   }
   if (erase){
     const b = blockAt(e.clientX, e.clientY); if (!b) return;
-    if (supporting(b)){ toast('Remove the tile on top of it first'); return; }
-    removeBlock(b.id); hover = null; return;
+    removeWithRiders(b); hover = null; return;
   }
   if (pending){ if (pendHit(e.clientX, e.clientY)){ turnPending(); return; } dropPending(); }
   const hitB = blockAt(e.clientX, e.clientY);
