@@ -592,7 +592,7 @@ const store = {
   get(k){ try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
   set(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
 };
-const VER = '20261118-2000';
+const VER = '20261118-2300';
 /* ---------- keyboard shortcuts, rebindable (15 Nov 2026) ---------- */
 const KEY_DEFAULT = { turn:'r', erase:'e', select:'s', view:'v', move:'m', boards:'b', tiles:'t', frame:'f', zin:'=', zout:'-', del:'delete' };
 const KEY_ALIAS = { zin:['+'], zout:['_'], del:['backspace'] };          // extra keys that also work while the default is kept
@@ -1201,9 +1201,11 @@ function feetOf(m){                                        // the hull bottom, i
 function boatCells(m, c, r, ro, t45){                      // squares a boat covers; turned 45 degrees, the ones its hull crosses
   if (!t45) return cellsOf(m, c, r, ro);
   const [w, h] = foot(m, ro), cx = (c + w/2)*P, cz = (r + h/2)*P, th = yawOf(ro, t45), co = Math.cos(th), si = Math.sin(th);
-  const L = m.cells[0]*P, W = m.cells[1]*P, seen = new Map();
-  for (let lx = -L/2 + 1; lx <= L/2 - 1; lx += 2) for (let lz = -W/2 + 1.5; lz <= W/2 - 1.5; lz += 2){
-    const x = Math.floor((cx + lx*co + lz*si)/P), z = Math.floor((cz - lx*si + lz*co)/P); seen.set(x + ',' + z, [x, z]); }
+  const L = m.cells[0]*P, W = m.cells[1]*P, tr = m.cells[1] >= 3 ? 0.9 : 0.78, seen = new Map();   // the hull's own outline (18 Nov 2026)
+  for (let lx = -L/2 + 1; lx <= L/2 - 1; lx += 1.5){
+    const u = (lx + L/2)/L, form = u < 0.45 ? tr + (1 - tr)*Math.sin(Math.PI/2*u/0.45) : Math.pow(Math.max(Math.cos(Math.PI/2*(u - 0.45)/0.55), 0), 0.7);
+    const hw = (W/2 - 1.1)*form;
+    for (let lz = -hw; lz <= hw; lz += 1.5){ const x = Math.floor((cx + lx*co + lz*si)/P), z = Math.floor((cz - lx*si + lz*co)/P); seen.set(x + ',' + z, [x, z]); } }
   return [...seen.values()];
 }
 const blockCells = b => BY[b.code].float ? boatCells(BY[b.code], b.c, b.r, b.rot, b.t45) : cellsOf(BY[b.code], b.c, b.r, b.rot);
@@ -1239,8 +1241,8 @@ function checkFloat(m, c, r, ro, skip, t45){
   const cs = boatCells(m, c, r, ro, t45), t = tallOf(m);
   if (cs.some(([x,z]) => !inBoard(x, z))) return { ok:false, why:'Off the edge of the board.', lvl:0 };
   const p = boatPose(m, c, r, ro, skip, t45); if (!p.ok) return { ...p, lvl:0 };
-  for (let h = p.base; h < p.base + t; h++) if (cs.some(([x,z]) => { const id = occ.get(key(h,x,z)); return id && id !== skip; }))
-    return { ok:false, why:'Something is in the way of the boat.', lvl:p.base/2 };
+  // anything standing where it would sit is found by the exact shape test below (18 Nov 2026: the square test refused boats
+  // that cleared a deck's corner)
   // the hull, as it rests and tilts, against the real shape of every model round it: deck overhangs, posts, fences, lamps, other boats (18 Nov 2026)
   const hit = boatHits(m.code, c, r, ro, p, b => b.id === skip, t45);
   if (hit) return { ok:false, why:`It would hit ${hitName(hit)}.`, lvl:p.base/2 };
@@ -1848,17 +1850,19 @@ function groupTry(list, dc, dr){
 function gdragShow(){
   const g = gdrag; setMulti(multi, g.res && !g.res.ok ? multiBad : multiMat);
   for (const b of g.list){ const m = meshes.get(b.id); if (m){ m.position.x += g.dc*P; m.position.z += g.dr*P; } }
-  const gone = g.res && g.res.ok && g.res.extra.length ? ` ${g.res.extra.length} accessor${g.res.extra.length === 1 ? 'y' : 'ies'} on it that ${g.res.extra.length === 1 ? 'isn’t' : 'aren’t'} selected will be removed.` : '';
+  const gone = g.res && g.res.ok && (g.res.extra || []).length ? ` ${g.res.extra.length} accessor${g.res.extra.length === 1 ? 'y' : 'ies'} on it that ${g.res.extra.length === 1 ? 'isn’t' : 'aren’t'} selected will be removed.` : '';
   hint(g.res && !g.res.ok ? `${g.res.why} Let go and they go back.` : `Let go to drop ${g.list.length} tile${g.list.length === 1 ? '' : 's'} here.${gone}`, g.res && !g.res.ok ? 'bad' : 'ok');
 }
 function gdragEnd(){
-  const g = gdrag; gdrag = null; controls.enabled = true; if (!g.on) return;
+  const g = gdrag; gdrag = null; controls.enabled = true;
+  if (g.single && !g.on) return;                     // a plain click on a piece with accessories: selected or turned as usual
+  if (!g.on) return;
   for (const b of g.list){ const m = meshes.get(b.id); if (m){ m.position.x -= g.dc*P; m.position.z -= g.dr*P; } }
-  if (!g.dc && !g.dr){ setMulti(multi); return; }
-  if (!g.res || !g.res.ok){ setMulti(multi); toast(g.res ? g.res.why : 'They can’t go there.'); return; }
+  if (!g.dc && !g.dr){ setMulti(g.single ? [] : multi); return; }
+  if (!g.res || !g.res.ok){ setMulti(g.single ? [] : multi); toast(g.res ? g.res.why : 'They can’t go there.'); return; }
   const ex = g.res.extra || [];
   hush++; ex.forEach(b => removeBlock(b.id, false)); g.list.forEach(b => removeBlock(b.id, false)); g.res.put.forEach(b => addBlock(b, false)); reMast(); hush--;
-  undo.push({ op:'group', before:[...g.list, ...ex], after:g.res.put }); changed(); setMulti(g.res.put.map(b => b.id));
+  undo.push({ op:'group', before:[...g.list, ...ex], after:g.res.put }); changed(); setMulti(g.single ? [] : g.res.put.map(b => b.id)); if (g.single) pickBlock(g.res.put[0].id, true);
   if (ex.length) toast(`Moved. Removed ${ex.map(b => b.code).join(', ')}, which sat on the selection but wasn’t selected. Undo brings ${ex.length === 1 ? 'it' : 'them'} back.`);
 }
 function deleteMulti(){
@@ -1890,7 +1894,7 @@ addEventListener('pointermove', e => {
     el.hidden = false; return;
   }
   if (gdrag && e.pointerId === gdrag.id){
-    if (!gdrag.on){ if (Math.hypot(e.clientX - gdrag.x, e.clientY - gdrag.y) < 6) return; gdrag.on = true; }
+    if (!gdrag.on){ if (Math.hypot(e.clientX - gdrag.x, e.clientY - gdrag.y) < 6) return; gdrag.on = true; if (gdrag.single){ pickBlock(null, true); setMulti(gdrag.list.map(b => b.id)); } }
     const sq = squareAt(e.clientX, e.clientY, true, gdrag.hy); if (!sq) return;
     const dc = sq.c - gdrag.sq.c, dr = sq.r - gdrag.sq.r; if (dc === gdrag.dc && dr === gdrag.dr && gdrag.res) return;
     for (const b of gdrag.list){ const m = meshes.get(b.id); if (m){ m.position.x -= gdrag.dc*P; m.position.z -= gdrag.dr*P; } }
@@ -2433,6 +2437,12 @@ stage.addEventListener('pointerdown', e => {
   const b = blockAt(e.clientX, e.clientY); if (!b) return;
   // with a tile in hand, only the selected tile can be dragged: pressing on it moves it rather than turning the view (15 Nov 2026)
   if (sel && b.id !== picked) return;
+  const up = riders(b);
+  if (up.length && up.every(isAccy)){                 // it carries its accessories: moved as a group, checked where they all land (18 Nov 2026)
+    const hy = b.level*LV, sq = squareAt(e.clientX, e.clientY, true, hy);
+    if (sq){ gdrag = { id:e.pointerId, hy, sq, dc:0, dr:0, on:false, x:e.clientX, y:e.clientY, list:[b, ...up], res:null, single:b.id }; controls.enabled = false; }   // a plain click still selects and turns it
+    return;
+  }
   if (supporting(b)){                                // tiles holding up others stay put
     if (b.id === picked){                            // pressing on the selected tile never turns the view
       hint(`${b.code} has something on it, so it can’t be dragged. Click it to turn it, or move what’s on it first.`, 'bad');
@@ -2455,8 +2465,10 @@ function tdragMove(e){
   const b = tdrag.b, m = BY[b.code], [w, h] = foot(m, b.rot), c = sq.c - tdrag.dc, r = sq.r - tdrag.dr;
   const cs = cellsOf(m, c, r, b.rot), onCount = cs.filter(([x,z]) => inBoard(x, z)).length;
   const res = check(m, c, r, b.rot, b.level, b.t45);
-  Object.assign(tdrag, { c, r, ok:res.ok, why:res.why, lvl:res.lvl, off:onCount === 0 });
-  dragMesh.position.set((c + w/2)*P, res.lvl*LV + 0.5, (r + h/2)*P);
+  Object.assign(tdrag, { c, r, ok:res.ok, why:res.why, lvl:res.lvl, off:onCount === 0, at:res.at });
+  dragMesh.position.set((c + w/2)*P, res.lvl*LV + 0.5, (r + h/2)*P); dragMesh.rotation.y = -b.rot*Math.PI/2;
+  if (m.mast){ if (res.ok) placeMast(dragMesh, { c:res.at.c, r:res.at.r, rot:b.rot, t45:b.t45 }); }       // keeps its turn while it moves (18 Nov 2026)
+  else { poseMesh(dragMesh, m.float && res.ok ? res.pose : null); if (b.t45 && turns45(m)) spin45(dragMesh, m, c, r, b.rot); if (m.float && res.ok) dragMesh.position.y += 0.5; }
   const col = new THREE.Color(css(res.ok ? '--ok' : '--bad')); dragMat.color.copy(col); dragMat.emissive.copy(col);
   dragMat.opacity = tdrag.off ? 0.3 : 0.6;
   hint(res.ok ? 'Let go to drop it here.' : tdrag.off ? 'Let go here to remove the tile.' : `${res.why} You can still let go, then rotate it.`, res.ok ? 'ok' : 'bad');
@@ -2472,7 +2484,7 @@ function tdragEnd(e){
   }
   if (t.off){ undo.push({ op:'remove', b:t.b }); changed(); toast(`Removed ${t.b.code}. Undo brings it back.`); idleHint(); return true; }
   if (t.c === undefined || (t.c === t.b.c && t.r === t.b.r)){ addBlock(t.b, false); pickBlock(t.b.id, true); idleHint(); return true; }
-  if (t.ok){ const nb = { ...t.b, c:t.c, r:t.r, level:t.lvl }; addBlock(nb, false); undo.push({ op:'swap', before:t.b, after:nb }); changed(); pickBlock(nb.id); }
+  if (t.ok){ const at = BY[t.b.code].mast && t.at ? t.at : t; const nb = { ...t.b, c:at.c, r:at.r, level:t.lvl }; addBlock(nb, false); undo.push({ op:'swap', before:t.b, after:nb }); changed(); pickBlock(nb.id); }
   else setPending({ ...t.b, c:t.c, r:t.r, from:t.b }, t.why);
   return true;
 }
