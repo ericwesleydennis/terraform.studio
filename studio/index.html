@@ -592,7 +592,7 @@ const store = {
   get(k){ try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
   set(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
 };
-const VER = '20261118-1300';
+const VER = '20261118-1630';
 /* ---------- keyboard shortcuts, rebindable (15 Nov 2026) ---------- */
 const KEY_DEFAULT = { turn:'r', erase:'e', select:'s', view:'v', move:'m', boards:'b', tiles:'t', frame:'f', zin:'=', zout:'-', del:'delete' };
 const KEY_ALIAS = { zin:['+'], zout:['_'], del:['backspace'] };          // extra keys that also work while the default is kept
@@ -982,15 +982,15 @@ function shadowOf(pos){
 // lava under a ledge: the real test is solid against solid. For every 2.5 mm column we keep the heights where the body is
 // solid (a ray straight down through the mesh), so a lava piece can only go where the ledge is hollow above it (14 Nov 2026)
 const COLS = {}, wcCache = new Map();
-function columnsOf(pos){
+function columnsOf(pos, g = G){
   const hits = new Map();
   for (let i = 0; i < pos.length; i += 9){
     const ax = pos[i], ay = pos[i+1], az = pos[i+2], bx = pos[i+3], by = pos[i+4], bz = pos[i+5], cx = pos[i+6], cy = pos[i+7], cz = pos[i+8];
     const d = (bz - cz)*(ax - cx) + (cx - bx)*(az - cz); if (Math.abs(d) < 1e-6) continue;
     const ny = (bz - az)*(cx - ax) - (bx - ax)*(cz - az);          // y of the face normal (sign only)
-    const i0 = Math.floor(Math.min(ax, bx, cx)/G), i1 = Math.ceil(Math.max(ax, bx, cx)/G), j0 = Math.floor(Math.min(az, bz, cz)/G), j1 = Math.ceil(Math.max(az, bz, cz)/G);
+    const i0 = Math.floor(Math.min(ax, bx, cx)/g), i1 = Math.ceil(Math.max(ax, bx, cx)/g), j0 = Math.floor(Math.min(az, bz, cz)/g), j1 = Math.ceil(Math.max(az, bz, cz)/g);
     for (let x = i0; x < i1; x++) for (let z = j0; z < j1; z++){
-      const px = (x + 0.5)*G, pz = (z + 0.5)*G;
+      const px = (x + 0.5)*g, pz = (z + 0.5)*g;
       const l1 = ((bz - cz)*(px - cx) + (cx - bx)*(pz - cz))/d, l2 = ((cz - az)*(px - cx) + (ax - cx)*(pz - cz))/d, l3 = 1 - l1 - l2;
       if (l1 < -1e-6 || l2 < -1e-6 || l3 < -1e-6) continue;
       const k = x + ',' + z; let a = hits.get(k); if (!a) hits.set(k, a = []);
@@ -1013,18 +1013,47 @@ function columnsOf(pos){
   return out;
 }
 // a lamp or stump turned the extra 45 degrees (17 Nov 2026): its cells are turned about the socket, as spin45 turns the mesh
-function turn45(out, code, c, r, ro){
-  const [hx, hz] = holesOf(BY[code], c, r, ro)[0], px = hx*P/G, pz = hz*P/G, k = Math.SQRT1_2, res = new Map();
+function turn45(out, code, c, r, ro, g = G){
+  const [hx, hz] = holesOf(BY[code], c, r, ro)[0], px = hx*P/g, pz = hz*P/g, k = Math.SQRT1_2, res = new Map();
   for (const [key0, iv] of out){ const [i, j] = key0.split(',').map(Number);
     for (const [a, b] of [[0.25,0.25],[0.75,0.25],[0.25,0.75],[0.75,0.75]]){ const x = i + a - px, z = j + b - pz;
       const nk = Math.floor(px + x*k - z*k) + ',' + Math.floor(pz + x*k + z*k); if (!res.has(nk)) res.set(nk, iv); } }
   return res;
 }
-function worldCols(code, c, r, ro, h45){
-  if (h45 && turns45(BY[code])){ const k = `${code}|${c}|${r}|${ro}|45`; if (wcCache.has(k)) return wcCache.get(k); const base = worldCols(code, c, r, ro); if (!base) return null; const t = turn45(base, code, c, r, ro); wcCache.set(k, t); return t; }
-  const k = `${code}|${c}|${r}|${ro}`; if (wcCache.has(k)) return wcCache.get(k);
-  const cs = COLS[code]; if (!cs) return null;
-  const [w, h] = foot(BY[code], ro), ox = Math.round((c + w/2)*P/G), oz = Math.round((r + h/2)*P/G), out = new Map();
+// real shapes for any model, worked out the first time something needs them (boat clash checks, 18 Nov 2026)
+function lazyCols(code, g = G){ const geo = geos[code]; if (!geo) return null; const store = g === G ? COLS : FCOLS;
+  try { return store[code] = columnsOf(geo.getAttribute('position').array, g); } catch { return null; } }
+const GF = 0.5, FCOLS = {};                                // boats are checked on a 0.5 mm grid: a post grazing a hull by a millimetre is caught
+// a placed model's columns and how far each sits above the board: level, plus a boat's or mast's rest and tilt
+function placedCols(code, c, r, ro, t45, level, pose, g = GF){
+  const cols = worldCols(code, c, r, ro, t45, g); if (!cols) return null;
+  if (!pose) { const y = level*LV; return { cols, at:() => y }; }
+  const [w, h] = foot(BY[code], ro), cx = (c + w/2)*P, cz = (r + h/2)*P, th = -ro*Math.PI/2, co = Math.cos(th), si = Math.sin(th);
+  const bx = Math.tan(pose.rz), bz = -Math.tan(pose.rx);
+  return { cols, at:(k) => { const [i, j] = k.split(',').map(Number), dx = (i + 0.5)*g - cx, dz = (j + 0.5)*g - cz;
+    return pose.y + bx*(dx*co - dz*si) + bz*(dx*si + dz*co); } };
+}
+function colsHit(A, B){                                    // solid against solid, anywhere they share a column (0.3 mm allowed for touching)
+  const [s, l] = A.cols.size <= B.cols.size ? [A, B] : [B, A];
+  for (const [k, iv] of s.cols){ const jv = l.cols.get(k); if (!jv) continue; const ys = s.at(k), yl = l.at(k);
+    for (let n = 0; n < iv.length; n += 2) for (let q = 0; q < jv.length; q += 2)
+      if (iv[n] + ys < jv[q+1] + yl - 0.3 && iv[n+1] + ys > jv[q] + yl + 0.3) return true; }
+  return false;
+}
+const placedOf = b => placedCols(b.code, b.c, b.r, b.rot, b.t45, b.level, b.pose);
+// a boat or mast against everything round it except the water, lava and sand it floats on
+function boatHits(code, c, r, ro, pose, skip){
+  const A = placedCols(code, c, r, ro, false, 0, pose); if (!A) return null;
+  for (const b of blocks){ if (skip(b) || isFluid(b.code) || Math.abs(b.c - c) > 5 || Math.abs(b.r - r) > 5) continue;
+    const B = placedOf(b); if (B && colsHit(A, B)) return b; }
+  return null;
+}
+const hitName = b => BY[b.code].float ? 'the other boat' : BY[b.code].mast ? 'the mast' : 'the ' + nm(BY[b.code]).replace(/^Jetty /, '').toLowerCase();
+function worldCols(code, c, r, ro, h45, g = G){
+  if (h45 && turns45(BY[code])){ const k = `${code}|${c}|${r}|${ro}|45|${g}`; if (wcCache.has(k)) return wcCache.get(k); const base = worldCols(code, c, r, ro, false, g); if (!base) return null; const t = turn45(base, code, c, r, ro, g); wcCache.set(k, t); return t; }
+  const k = `${code}|${c}|${r}|${ro}|${g}`; if (wcCache.has(k)) return wcCache.get(k);
+  const cs = (g === G ? COLS[code] : FCOLS[code]) || lazyCols(code, g); if (!cs) return null;
+  const [w, h] = foot(BY[code], ro), ox = Math.round((c + w/2)*P/g), oz = Math.round((r + h/2)*P/g), out = new Map();
   for (let [i, j, iv] of cs){ for (let n = 0; n < ro; n++) [i, j] = [-j - 1, i]; out.set((i + ox) + ',' + (j + oz), iv); }
   if (wcCache.size > 4000) wcCache.clear();
   wcCache.set(k, out); return out;
@@ -1174,13 +1203,10 @@ function checkFloat(m, c, r, ro, skip){
   const p = boatPose(m, c, r, ro, skip); if (!p.ok) return { ...p, lvl:0 };
   for (let h = p.base; h < p.base + t; h++) if (cs.some(([x,z]) => { const id = occ.get(key(h,x,z)); return id && id !== skip; }))
     return { ok:false, why:'Something is in the way of the boat.', lvl:p.base/2 };
-  const mine = worldCols(m.code, c, r, ro);                 // fences, lamps and stumps: their real shapes against the hull
-  if (mine) for (const a of blocks){ if (a.id === skip || !BY[a.code].acc || BY[a.code].float) continue;
-    const theirs = worldCols(a.code, a.c, a.r, a.rot, a.t45); if (!theirs) continue;
-    for (const [k, iv] of mine){ const jv = theirs.get(k); if (!jv) continue;
-      const lo = iv[0] + p.y, hi_ = iv[iv.length - 1] + p.y + 2;   // tilt is small where there is anything to hit
-      for (let n = 0; n < jv.length; n += 2) if (jv[n] + a.level*LV < hi_ - 0.2 && jv[n+1] + a.level*LV > lo + 0.2)
-        return { ok:false, why:`It would hit the ${nm(BY[a.code]).replace(/^Jetty /, '').toLowerCase()}.`, lvl:p.base/2 }; } }
+  // the hull, as it rests and tilts, against the real shape of every model round it: deck overhangs, posts, fences, lamps, other boats (18 Nov 2026)
+  const own = b => b.id === skip || (skip && BY[b.code].mast && blocks.some(q => q.id === skip && q.c === b.c && q.r === b.r));
+  const hit = boatHits(m.code, c, r, ro, p, own);
+  if (hit) return { ok:false, why:`It would hit ${hitName(hit)}.`, lvl:p.base/2 };
   return { ok:true, why:'Sits here.', lvl:p.base/2, pose:p };
 }
 function poseMesh(o, p){ o.rotation.order = 'YXZ'; o.rotation.x = p ? p.rx : 0; o.rotation.z = p ? p.rz : 0; if (p) o.position.y = p.y; }
@@ -1191,11 +1217,22 @@ function checkMast(m, c, r, ro){
   const bt = blocks.find(b => BY[b.code].mastStep && b.rot % 2 === ro % 2 && cellsOf(BY[b.code], b.c, b.r, b.rot).some(([x,z]) => x === mx && z === mz));
   if (!bt) return { ok:false, why:'Masts go in the step of a sailing boat (P5212).', lvl:0 };
   if (blocks.some(a => BY[a.code].mast && a.c === bt.c && a.r === bt.r && a.id !== check.skip)) return { ok:false, why:'That boat already has a mast.', lvl:bt.level, at:{ c:bt.c, r:bt.r } };
-  return { ok:true, why:'Steps into the boat.', lvl:bt.level, at:{ c:bt.c, r:bt.r }, pose:mastPose(bt, ro) };
+  const mp = mastPose(bt, ro), hit = mp && boatHits(m.code, bt.c, bt.r, ro, mp, b => b.id === bt.id || b.id === check.skip);
+  if (hit) return { ok:false, why:`The mast would hit ${hitName(hit)}.`, lvl:bt.level, at:{ c:bt.c, r:bt.r } };
+  return { ok:true, why:'Steps into the boat.', lvl:bt.level, at:{ c:bt.c, r:bt.r }, pose:mp };
 }
 function mastPose(bt, ro){ const p = boatPose(BY[bt.code], bt.c, bt.r, bt.rot, bt.id); if (!p.ok) return null;
   return ro === bt.rot ? p : { ...p, rx:-p.rx, rz:-p.rz }; }
-function check(m, c, r, ro, lv, h45){            // h45: a one-socket accessory turned the extra 45 degrees
+function check(m, c, r, ro, lv, h45){
+  const res = checkCore(m, c, r, ro, lv, h45);
+  if (!res.ok || m.float || m.mast || isFluid(m.code)) return res;
+  const near = blocks.filter(b => (BY[b.code].float || BY[b.code].mast) && b.pose && b.id !== check.skip && Math.abs(b.c - c) <= 5 && Math.abs(b.r - r) <= 5);
+  if (!near.length) return res;
+  const A = placedCols(m.code, c, r, ro, h45, res.lvl); if (!A) return res;
+  for (const b of near) if (colsHit(A, placedOf(b))) return { ...res, ok:false, why:`It would hit ${hitName(b)}.` };   // decks and fences can't be put through a boat (18 Nov 2026)
+  return res;
+}
+function checkCore(m, c, r, ro, lv, h45){            // h45: a one-socket accessory turned the extra 45 degrees
   if (m.float) return checkFloat(m, c, r, ro, check.skip);
   if (m.mast) return checkMast(m, c, r, ro);
   if (m.acc && m.holes && m.holes.length) return checkAcc(m, c, r, ro, lv, h45 && turns45(m));
@@ -1249,8 +1286,8 @@ function addBlock(b, record=true){
   mesh.position.set((b.c + w/2)*P, b.level*LV, (b.r + h/2)*P);
   mesh.rotation.y = -b.rot * Math.PI/2;
   if (b.t45 && turns45(m)) spin45(mesh, m, b.c, b.r, b.rot);
-  if (m.float){ const p = boatPose(m, b.c, b.r, b.rot, b.id); poseMesh(mesh, p.ok ? p : null); }   // the boat sits on what is under it (18 Nov 2026)
-  if (m.mast){ const bt = blocks.find(a => BY[a.code].mastStep && a.c === b.c && a.r === b.r); poseMesh(mesh, bt ? mastPose(bt, b.rot) : null); }
+  if (m.float){ const p = boatPose(m, b.c, b.r, b.rot, b.id); b.pose = p.ok ? p : null; poseMesh(mesh, b.pose); }   // the boat sits on what is under it (18 Nov 2026)
+  if (m.mast){ const bt = blocks.find(a => BY[a.code].mastStep && a.c === b.c && a.r === b.r); b.pose = bt ? mastPose(bt, b.rot) : null; poseMesh(mesh, b.pose); }
   mesh.castShadow = mesh.receiveShadow = true; mesh.userData.id = b.id;
   if (m.insert && geos[m.insert]){ const ins = new THREE.Mesh(geos[m.insert], fluidMat); ins.castShadow = true; mesh.add(ins); }   // the fall's fluid insert
   scene.add(mesh); meshes.set(b.id, mesh);
