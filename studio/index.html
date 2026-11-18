@@ -592,7 +592,7 @@ const store = {
   get(k){ try { return JSON.parse(localStorage.getItem(k)); } catch { return null; } },
   set(k,v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch {} }
 };
-const VER = '20261118-0015';
+const VER = '20261118-1300';
 /* ---------- keyboard shortcuts, rebindable (15 Nov 2026) ---------- */
 const KEY_DEFAULT = { turn:'r', erase:'e', select:'s', view:'v', move:'m', boards:'b', tiles:'t', frame:'f', zin:'=', zout:'-', del:'delete' };
 const KEY_ALIAS = { zin:['+'], zout:['_'], del:['backspace'] };          // extra keys that also work while the default is kept
@@ -619,11 +619,11 @@ function groupOf(m){
   if (c === 'Castles') return n <= 2009 ? 'Base' : n <= 2019 ? 'Half height' : n <= 2029 ? 'Double height' : n <= 2049 ? 'Round' : n <= 2059 ? 'Angled' : 'Misc';
   if (c === 'Caves') return (n <= 3004 || n === 3009 || n === 3010) ? 'Base' : n <= 3008 ? 'Slopes' : n <= 3019 ? 'Corners' : 'Misc';
   if (c === 'Riverbed') return n <= 4019 ? 'Ledges' : n <= 4039 ? 'Corners & jogs' : n <= 4059 ? 'Stones' : 'Misc';
-  if (c === 'Coasts') return n <= 5099 ? 'Shore' : (n >= 5111 && n <= 5113) ? 'Landing' : n <= 5199 ? 'Jetty' : 'Accessories';   // P5110 and P5114 are run pieces, not landings (17 Nov 2026)
+  if (c === 'Coasts') return n <= 5099 ? 'Shore' : (n >= 5111 && n <= 5113) ? 'Landing' : n <= 5199 ? 'Jetty' : (n >= 5210 && n <= 5229) ? 'Boats' : 'Accessories';   // boats and masts (18 Nov 2026)   // P5110 and P5114 are run pieces, not landings (17 Nov 2026)
   if (c === FLUIDTAB) return n <= 4109 ? 'Edges' : n <= 4119 ? 'Slabs' : n <= 4129 ? 'Corners' : n <= 4139 ? 'Angled' : n <= 4149 ? 'Shallows' : n <= 4159 ? 'Jetty water' : 'Misc';
   return 'Misc';
 }
-const GROUP_ORDER = { Coasts:['Shore', 'Jetty', 'Landing', 'Accessories'], Interiors:['Base', 'Walls', 'Corners', 'Corridors', 'Doors', 'Diagonal', 'Misc'], Castles:['Base', 'Half height', 'Double height', 'Round', 'Angled', 'Misc'], Caves:['Base', 'Slopes', 'Corners', 'Misc'],
+const GROUP_ORDER = { Coasts:['Shore', 'Jetty', 'Landing', 'Accessories', 'Boats'], Interiors:['Base', 'Walls', 'Corners', 'Corridors', 'Doors', 'Diagonal', 'Misc'], Castles:['Base', 'Half height', 'Double height', 'Round', 'Angled', 'Misc'], Caves:['Base', 'Slopes', 'Corners', 'Misc'],
   Riverbed:['Ledges', 'Corners & jogs', 'Stones', 'Misc'], [FLUIDTAB]:['Edges', 'Slabs', 'Corners', 'Angled', 'Shallows', 'Jetty water', 'Misc'] };
 
 /* ---------- state ---------- */
@@ -748,7 +748,7 @@ const JETTY_COL = ['Cocoa Brown', '#6F5034'], isJetty = code => /^P5[12]\d\d$/.t
 const jettyMat = new THREE.MeshStandardMaterial({ color:JETTY_COL[1], roughness:0.75 }), jettyLower = new THREE.MeshStandardMaterial({ color:new THREE.Color(JETTY_COL[1]).multiplyScalar(0.7), roughness:0.8 });
 const matOf = (code, lower) => (BY[code] && BY[code].sand) ? (lower ? sandLower : sandMat) : isFluid(code) ? (lower ? fluidLower : fluidMat) : isJetty(code) ? (lower ? jettyLower : jettyMat) : (BY[code] && BY[code].smooth) ? (lower ? lowerSmooth : tileSmooth) : (lower ? lowerMat : tileMat);
 // the filament colour each piece is listed in: the map colour, unless the piece has its own
-const hexOf = code => isFluid(code) ? (FLUIDS[fluidMode] || FLUIDS.lava).hex : isJetty(code) ? JETTY_COL[1] : colour[1];
+const hexOf = code => (BY[code] && BY[code].sand) ? '#F7E6DE' : isFluid(code) ? (FLUIDS[fluidMode] || FLUIDS.lava).hex : isJetty(code) ? JETTY_COL[1] : colour[1];
 const ghostMat = new THREE.MeshStandardMaterial({ color:0x4ade80, emissive:0x4ade80, emissiveIntensity:0.5, transparent:true, opacity:0.55, flatShading:true, depthWrite:false });
 const padMat = new THREE.MeshBasicMaterial({ color:0x4ade80, transparent:true, opacity:0.35, depthWrite:false, side:THREE.DoubleSide });
 const silMat = new THREE.MeshBasicMaterial({ transparent:true, opacity:0.10, depthWrite:false, side:THREE.DoubleSide });
@@ -1134,17 +1134,70 @@ function checkAcc(m, c, r, ro, lv, h45){
   const cl = clashes(m, c, r, ro, base, h45); if (cl) return { ok:false, why:'It runs into something next to it.', lvl:at };
   return { ok:true, why:`Fits, in ${hs.length === 1 ? 'the socket' : hs.length + ' sockets'} ${base === 0 ? 'in the board' : `on top of the ${base % 2 ? 'half-height ' : ''}tile`}.`, lvl:at };
 }
-// a floating accessory (the boat, 17 Nov 2026): every square it covers has water or lava (not sand) and nothing over it
-function checkFloat(m, c, r, ro){
+// a floating accessory (the boat). 17 Nov 2026: water or lava only. 18 Nov 2026: also bare board, sand (it tilts to the
+// slope) and jetty decks (wholly on deck, clear of fences, lamps and stumps). It rests on the highest points under its
+// hull: the Studio samples the surface under the flat bottom, sets it down on those and tips it to match.
+const BOAT_FEET = (() => { const out = [];                 // the hull bottom, in the mesh's own frame (x along the boat, bow +x)
+  for (let x = -20; x <= 18; x += 3.8) { const hw = x < 6 ? 7 : x < 13 ? 4.5 : 1.5; for (const z of [-hw, 0, hw]) out.push([x, z]); }
+  return out; })();
+function surfaceAt(wx, wz, skip){                          // highest thing under a point: { y, kind } (y: 0 is the board)
+  const x = Math.floor(wx / P), z = Math.floor(wz / P), ck = Math.floor(wx / G) + ',' + Math.floor(wz / G);
+  let y = 0, kind = inBoard(x, z) ? 'board' : 'off';
+  for (const b of blocks){ if (b.id === skip) continue; const m = BY[b.code]; if (m.acc) continue;
+    if (isFluid(b.code)){ const cols = worldCols(b.code, b.c, b.r, b.rot), iv = cols && cols.get(ck);
+      if (iv){ const t = iv[iv.length - 1] + b.level*LV; if (t > y){ y = t; kind = m.sand ? 'sand' : 'fluid'; } } continue; }
+    if (!cellsOf(m, b.c, b.r, b.rot).some(([u,v]) => u === x && v === z)) continue;
+    const t = b.level*LV + (m.size ? m.size[2] : 29.51) - 3.25;
+    if (t > y - 0.01){ y = t; kind = (isJetty(b.code) && m.deck) ? 'deck' : 'tile'; }
+  }
+  return { y, kind };
+}
+function boatPose(m, c, r, ro, skip){
+  const [w, h] = foot(m, ro), cx = (c + w/2)*P, cz = (r + h/2)*P, th = -ro*Math.PI/2, co = Math.cos(th), si = Math.sin(th);
+  const S = BOAT_FEET.map(([lx, lz]) => ({ lx, lz, ...surfaceAt(cx + lx*co + lz*si, cz - lx*si + lz*co, skip) }));
+  if (S.some(s => s.kind === 'off')) return { ok:false, why:'Off the edge of the board.' };
+  if (S.some(s => s.kind === 'tile')) return { ok:false, why:'Boats sit on water, lava, sand, the bare board or a jetty deck.' };
+  const onDeck = S.some(s => s.kind === 'deck');
+  if (onDeck && !S.every(s => s.kind === 'deck')) return { ok:false, why:'A boat on the jetty has to sit wholly on the deck.' };
+  const hi = (f) => S.filter(f).reduce((a, s) => s.y > a.y ? s : a, { y:-1e9 });
+  const tilt = (p, q, k) => (p.y > -1e8 && q.y > -1e8 && Math.abs(p[k] - q[k]) > 4) ? (p.y - q.y) / (p[k] - q[k]) : 0;
+  let bx = tilt(hi(s => s.lx > 0), hi(s => s.lx <= 0), 'lx'), bz = tilt(hi(s => s.lz > 0), hi(s => s.lz < 0), 'lz');
+  if (Math.abs(bx) < 0.03) bx = 0; if (Math.abs(bz) < 0.03) bz = 0;            // under about 1.7 degrees: sit level (wave crests)
+  if (Math.abs(bx) > 0.47 || Math.abs(bz) > 0.47) return { ok:false, why:'Too steep for a boat here.' };   // about 25 degrees
+  const y = Math.max(...S.map(s => s.y - bx*s.lx - bz*s.lz));
+  const base = onDeck ? Math.round((y + 0.01) / (LV/2)) : 0;
+  return { ok:true, y, rz:Math.atan(bx), rx:-Math.atan(bz), base };
+}
+function checkFloat(m, c, r, ro, skip){
   const cs = cellsOf(m, c, r, ro), t = tallOf(m);
   if (cs.some(([x,z]) => !inBoard(x, z))) return { ok:false, why:'Off the edge of the board.', lvl:0 };
-  const wet = ([x,z]) => { const id = occF.get(key(0,x,z)), b = id && blocks.find(q => q.id === id); return b && !BY[b.code].sand; };
-  if (!cs.every(wet)) return { ok:false, why:`Boats float: every square under it needs ${fluidMode === 'water' ? 'water' : 'lava'}.`, lvl:0 };
-  for (let h = 0; h < t + 1; h++) if (cs.some(([x,z]) => occ.has(key(h,x,z)))) return { ok:false, why:'Something is in the way: a boat needs nothing over its squares.', lvl:0 };
-  return { ok:true, why:'Floats here.', lvl:0 };
+  const p = boatPose(m, c, r, ro, skip); if (!p.ok) return { ...p, lvl:0 };
+  for (let h = p.base; h < p.base + t; h++) if (cs.some(([x,z]) => { const id = occ.get(key(h,x,z)); return id && id !== skip; }))
+    return { ok:false, why:'Something is in the way of the boat.', lvl:p.base/2 };
+  const mine = worldCols(m.code, c, r, ro);                 // fences, lamps and stumps: their real shapes against the hull
+  if (mine) for (const a of blocks){ if (a.id === skip || !BY[a.code].acc || BY[a.code].float) continue;
+    const theirs = worldCols(a.code, a.c, a.r, a.rot, a.t45); if (!theirs) continue;
+    for (const [k, iv] of mine){ const jv = theirs.get(k); if (!jv) continue;
+      const lo = iv[0] + p.y, hi_ = iv[iv.length - 1] + p.y + 2;   // tilt is small where there is anything to hit
+      for (let n = 0; n < jv.length; n += 2) if (jv[n] + a.level*LV < hi_ - 0.2 && jv[n+1] + a.level*LV > lo + 0.2)
+        return { ok:false, why:`It would hit the ${nm(BY[a.code]).replace(/^Jetty /, '').toLowerCase()}.`, lvl:p.base/2 }; } }
+  return { ok:true, why:'Sits here.', lvl:p.base/2, pose:p };
 }
+function poseMesh(o, p){ o.rotation.order = 'YXZ'; o.rotation.x = p ? p.rx : 0; o.rotation.z = p ? p.rz : 0; if (p) o.position.y = p.y; }
+// a mast (18 Nov 2026): goes in the step of a sailing boat. It shares the boat's footprint, so it snaps onto the boat
+// under the pointer and takes the boat's tilt. One mast per boat.
+function checkMast(m, c, r, ro){
+  const [w, h] = foot(m, ro), mx = c + Math.floor(w/2), mz = r + Math.floor(h/2);
+  const bt = blocks.find(b => BY[b.code].mastStep && b.rot % 2 === ro % 2 && cellsOf(BY[b.code], b.c, b.r, b.rot).some(([x,z]) => x === mx && z === mz));
+  if (!bt) return { ok:false, why:'Masts go in the step of a sailing boat (P5212).', lvl:0 };
+  if (blocks.some(a => BY[a.code].mast && a.c === bt.c && a.r === bt.r && a.id !== check.skip)) return { ok:false, why:'That boat already has a mast.', lvl:bt.level, at:{ c:bt.c, r:bt.r } };
+  return { ok:true, why:'Steps into the boat.', lvl:bt.level, at:{ c:bt.c, r:bt.r }, pose:mastPose(bt, ro) };
+}
+function mastPose(bt, ro){ const p = boatPose(BY[bt.code], bt.c, bt.r, bt.rot, bt.id); if (!p.ok) return null;
+  return ro === bt.rot ? p : { ...p, rx:-p.rx, rz:-p.rz }; }
 function check(m, c, r, ro, lv, h45){            // h45: a one-socket accessory turned the extra 45 degrees
-  if (m.float) return checkFloat(m, c, r, ro);
+  if (m.float) return checkFloat(m, c, r, ro, check.skip);
+  if (m.mast) return checkMast(m, c, r, ro);
   if (m.acc && m.holes && m.holes.length) return checkAcc(m, c, r, ro, lv, h45 && turns45(m));
   const cs = cellsOf(m, c, r, ro), L = Math.floor(lv), lvl = L;
   if (cs.some(([x,z]) => !inBoard(x, z))) return { ok:false, why:'Off the edge of the board.', lvl };
@@ -1196,6 +1249,8 @@ function addBlock(b, record=true){
   mesh.position.set((b.c + w/2)*P, b.level*LV, (b.r + h/2)*P);
   mesh.rotation.y = -b.rot * Math.PI/2;
   if (b.t45 && turns45(m)) spin45(mesh, m, b.c, b.r, b.rot);
+  if (m.float){ const p = boatPose(m, b.c, b.r, b.rot, b.id); poseMesh(mesh, p.ok ? p : null); }   // the boat sits on what is under it (18 Nov 2026)
+  if (m.mast){ const bt = blocks.find(a => BY[a.code].mastStep && a.c === b.c && a.r === b.r); poseMesh(mesh, bt ? mastPose(bt, b.rot) : null); }
   mesh.castShadow = mesh.receiveShadow = true; mesh.userData.id = b.id;
   if (m.insert && geos[m.insert]){ const ins = new THREE.Mesh(geos[m.insert], fluidMat); ins.castShadow = true; mesh.add(ins); }   // the fall's fluid insert
   scene.add(mesh); meshes.set(b.id, mesh);
@@ -1218,6 +1273,7 @@ function removeBlock(id, record=true){
   changed();
 }
 function supporting(b){
+  if (BY[b.code].mastStep && blocks.some(a => BY[a.code].mast && a.c === b.c && a.r === b.r)) return true;   // a boat holds its mast (18 Nov 2026)
   if (isFluid(b.code) || BY[b.code].acc) return false;   // nor do accessories: one in the board sits a half level below deck accessories beside it, which aren't on it (16 Nov 2026)          // water and lava hold nothing up (a jetty stands on its posts), so they can always come out from under (16 Nov 2026)
   const top = hb(b) + tallOf(BY[b.code]), cs = cellsOf(BY[b.code], b.c, b.r, b.rot);
   return cs.some(([x,z]) => occ.has(key(top, x, z)))
@@ -1234,8 +1290,9 @@ function showGhost(c, r){
   if (!sel || view || erase){ hideGhost(); return; }
   const [w,h] = foot(sel, rot);
   const res = check(sel, c, r, rot, level, half);
+  if (sel && sel.mast && res.at){ c = res.at.c; r = res.at.r; }   // a mast snaps onto the boat under it (18 Nov 2026)
   ghost.geometry = geos[sel.code];
-  ghost.position.set((c + w/2)*P, res.lvl*LV, (r + h/2)*P); ghost.rotation.y = -rot*Math.PI/2; if (half && turns45(sel)) spin45(ghost, sel, c, r, rot); ghost.visible = true;
+  ghost.position.set((c + w/2)*P, res.lvl*LV, (r + h/2)*P); ghost.rotation.y = -rot*Math.PI/2; poseMesh(ghost, (sel.float || sel.mast) ? res.pose : null); if (half && turns45(sel)) spin45(ghost, sel, c, r, rot); ghost.visible = true;
   const col = new THREE.Color(css(res.ok ? '--ok' : '--bad'));
   ghostMat.color.copy(col); ghostMat.emissive.copy(col); padMat.color.copy(col);
   const cs = cellsOf(sel, c, r, rot); const m4 = new THREE.Matrix4();
@@ -1353,6 +1410,7 @@ function pickedBlock(){ return picked === null ? null : blocks.find(b => b.id ==
 // turn a placed tile 90 degrees where it stands
 // what sits on a tile: tiles stacked on its squares, and accessories plugged into its sockets
 function restingOn(b){
+  if (BY[b.code].mastStep) return blocks.filter(a => BY[a.code].mast && a.c === b.c && a.r === b.r);
   if (BY[b.code].acc) return [];
   const top = hb(b) + tallOf(BY[b.code]), cs = cellsOf(BY[b.code], b.c, b.r, b.rot);
   return blocks.filter(a => a !== b && hb(a) === top && (BY[a.code].acc
@@ -2163,6 +2221,7 @@ function place(c, r){
   dropPending();
   if (stockStop(sel)) return;
   const res = check(sel, c, r, rot, level, half);
+  if (sel && sel.mast && res.at){ c = res.at.c; r = res.at.r; }   // a mast snaps onto the boat under it (18 Nov 2026)
   if (!res.ok){
     const on = sel.acc && sel.holes ? holesOf(sel, c, r, rot).some(([x,z]) => inBoard(x, z) || inBoard(x-1, z-1)) : cellsOf(sel, c, r, rot).some(([x,z]) => inBoard(x, z));
     if (!on){ toast(res.why); return; }
